@@ -14,7 +14,8 @@ This module is designed as a **Production-Grade Abstraction** over Google Cloud 
     *   **Vector Search**: The code includes the scaffolding to connect to a deployed `MatchingEngineIndexEndpoint` for massive-scale, low-latency approximate nearest neighbor (ANN) search in the cloud.
 *   **Local Fallback (The "Simulator")**:
     *   To allow for fast iteration without deploying costly cloud indexes, the system automatically falls back to a **Local Vector Store**.
-    *   It stores embeddings in an in-memory list and performs exact Nearest Neighbor search using `scikit-learn`'s Cosine Similarity.
+    *   **Mechanism**: It stores embeddings in an in-memory list and performs **Brute-Force Exact Search** (`O(N)`) using `scikit-learn`'s Cosine Similarity.
+    *   **Performance**: For datasets < 10,000 chunks (like most Product Specs), this is faster (<50ms) and more accurate than ANN. For >100k chunks, one must switch to the Cloud Index to avoid latency.
     *   **Persistence**: Data is pickled to `vector_store.pkl`, allowing the "database" to survive between script runs.
 *   **Hybrid Search Implementation**:
     *   **Layer 1 (Metadata)**: Hard filters exclude irrelevant documents (e.g., "Only look at `product_spec`").
