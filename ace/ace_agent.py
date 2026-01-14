@@ -137,29 +137,128 @@ paths:
         print("   Pass 3: Retrieving Style Guide Rules...")
         style_context = self._retrieve_style_guidelines()
 
+
+        # Format playbook for maximum LLM attention
+        formatted_playbook = self._format_playbook_for_prompt(context_playbook)
+
         print(f"   Context retrieved: Product Spec ({len(detailed_context)} chars), Style Guide ({len(style_context)} chars). Generating OAS...")
 
         prompt = f"""
-You are an expert API Developer.
-Your task is to generate an OpenAPI Specification (OAS 3.0) in YAML format.
+You are an expert API Developer generating OpenAPI Specifications.
 
-Retrieved Product Specification Context:
+[OUTPUT FORMAT]
+Output ONLY valid YAML. No markdown fences, no explanations.
+
+[PRODUCT SPECIFICATION]
 {detailed_context}
 
-Retrieved Style Guide Rules:
+[STYLE GUIDE - AUTHORITATIVE RULES]
 {style_context}
 
-Context Playbook (Guidelines & Learned Strategies):
-{context_playbook}
+[⚠️ CRITICAL REMINDERS - RULES YOU FREQUENTLY MISS]
+The following are NOT new rules. They are specific Style Guide rules that 
+you have historically failed to apply correctly in previous epochs. 
+Pay EXTRA attention to these:
 
-Instructions:
-1. Synthesize the retrieved product information into a cohesive OAS.
-2. Apply the Style Guide Rules and Context Playbook guidelines strictly.
-3. If information is missing, use standard industry placeholders (e.g., "description: To be defined").
-4. **STRATEGIC SCOPING**: Do NOT generate endpoints for shared enterprise services (Authentication, User Login, Sessions, API Keys, Tenant Management). These are handled by external platform services. Focus ONLY on the CORE domain value of this specific product.
-5. Output ONLY the valid YAML content.
+{formatted_playbook}
+
+[STRATEGIC SCOPING]
+Do NOT generate endpoints for shared enterprise services (Authentication, User Login, 
+Sessions, API Keys, Tenant Management). These are handled by external platform services. 
+Focus ONLY on the CORE domain value of this specific product.
+
+[FINAL INSTRUCTION - SELF-CHECK BEFORE OUTPUT]
+Before outputting your OpenAPI Specification:
+1. Review it against the Critical Reminders above
+2. Verify you haven't repeated past mistakes (check examples if provided)
+3. If the playbook includes a checklist, mentally verify each item
+4. Ensure all naming conventions match the emphasized patterns
+
+Generate the OpenAPI Specification now:
 """
         return self._clean_output(self._call_llm(prompt)), location_map
+
+
+    def _parse_playbook_sections(self, playbook: str) -> dict:
+        """
+        Parse the playbook into structured sections based on headers.
+        Returns dict with section names as keys and content lines as values.
+        """
+        sections = {}
+        current_section = None
+        current_content = []
+        
+        for line in playbook.split('\n'):
+            line_stripped = line.strip()
+            
+            # Detect section headers
+            if '🚨 CRITICAL' in line_stripped or 'CRITICAL' in line_stripped.upper():
+                if current_section and current_content:
+                    sections[current_section] = current_content
+                current_section = 'FREQUENTLY_MISSED'
+                current_content = []
+            elif '⚠️ MODERATE' in line_stripped or 'MODERATE' in line_stripped.upper():
+                if current_section and current_content:
+                    sections[current_section] = current_content
+                current_section = 'PARTIALLY_MISSED'
+                current_content = []
+            elif '📋' in line_stripped and 'CHECKLIST' in line_stripped.upper():
+                if current_section and current_content:
+                    sections[current_section] = current_content
+                current_section = 'CHECKLIST'
+                current_content = []
+            elif '📌' in line_stripped or 'EDGE' in line_stripped.upper():
+                if current_section and current_content:
+                    sections[current_section] = current_content
+                current_section = 'EDGE_CASES'
+                current_content = []
+            elif current_section and line_stripped:
+                # Add content to current section
+                current_content.append(line)
+        
+        # Add final section
+        if current_section and current_content:
+            sections[current_section] = current_content
+        
+        # Fallback: if no sections detected, treat entire playbook as FREQUENTLY_MISSED
+        if not sections and playbook.strip():
+            sections['FREQUENTLY_MISSED'] = playbook.split('\n')
+        
+        return sections
+
+    def _format_playbook_for_prompt(self, playbook: str) -> str:
+        """
+        Format the context playbook to maximize LLM attention.
+        Parses structured sections and presents them with visual emphasis.
+        """
+        if not playbook or not playbook.strip():
+            return "- Follow standard RESTful practices.\n- Ensure valid YAML output."
+        
+        sections = self._parse_playbook_sections(playbook)
+        
+        formatted = "=== CRITICAL REMINDERS (Rules You Often Miss) ===\n\n"
+        
+        if 'FREQUENTLY_MISSED' in sections:
+            formatted += "🚨 HIGH PRIORITY - You miss these >80% of the time:\n"
+            formatted += "\n".join(sections['FREQUENTLY_MISSED'])
+            formatted += "\n\n"
+        
+        if 'PARTIALLY_MISSED' in sections:
+            formatted += "⚠️ MEDIUM PRIORITY - You sometimes miss these:\n"
+            formatted += "\n".join(sections['PARTIALLY_MISSED'])
+            formatted += "\n\n"
+        
+        if 'EDGE_CASES' in sections:
+            formatted += "📌 EDGE CASES - Don't forget:\n"
+            formatted += "\n".join(sections['EDGE_CASES'])
+            formatted += "\n\n"
+        
+        if 'CHECKLIST' in sections:
+            formatted += "✅ FINAL CHECKLIST - Validate before output:\n"
+            formatted += "\n".join(sections['CHECKLIST'])
+        
+        return formatted.strip()
+
 
     def _retrieve_style_guidelines(self):
         """
@@ -401,58 +500,452 @@ Instructions:
 
     def curator(self, current_playbook_text, critique_text):
         """
-        The Curator updates the Context Playbook based on the Reflector's critique.
+        Enhanced Curator with conflict detection and Style Guide validation.
+        Multi-layered approach:
+        1. Extract rule candidates from critique
+        2. Validate against Style Guide (prevent contradictions)
+        3. Detect conflicts with existing playbook
+        4. Resolve conflicts intelligently
+        5. Deduplicate semantically
         """
-        print(f"--- Curator Step ---")
+        print(f"--- Curator Step (Enhanced) ---")
         if "NO_ISSUES" in critique_text:
             return current_playbook_text
 
+        # Step 1: Extract new rule candidates
+        new_rule_candidates = self._extract_rule_candidates_simple(critique_text)
+        
+        if not new_rule_candidates:
+            return current_playbook_text
+        
+        # Step 2: Validate against Style Guide
+        validated_rules = self._validate_against_style_guide(new_rule_candidates)
+        
+        # Step 3: Detect and resolve conflicts
+        conflict_free_rules = self._detect_and_resolve_conflicts(
+            validated_rules,
+            current_playbook_text
+        )
+        
+        # Step 4: Merge with semantic deduplication
+        updated_playbook = self._merge_rules_with_deduplication(
+            current_playbook_text,
+            conflict_free_rules
+        )
+        
+        return updated_playbook
+    
+    def _extract_rule_candidates_simple(self, critique_text):
+        """
+        Extract actionable rules from Reflector's critique.
+        Returns list of dict with 'rule', 'context', 'pattern' keys.
+        """
         prompt = f"""
-You are the Curator of the Agentic Context Engineering (ACE) system.
-Reflector's Critique (Recent Failures):
+You are the Curator of an API Standards Learning System.
+
+Reflector's Critique (violations found in generated OAS):
 {critique_text}
 
 Instructions:
-1. Based on the critique, generate a list of distinct, actionable guidelines.
-2. Formulate them as imperative rules.
-3. Output EACH rule on a new line starting with "- ".
-4. Do NOT output the entire playbook, ONLY the NEW rules.
+1. Extract SPECIFIC, ACTIONABLE rules that would prevent these violations
+2. Frame each as an imperative statement (e.g., "Use camelCase for operationId")
+3. Output EACH rule on a new line starting with "- "
+4. Do NOT output the entire playbook, ONLY the NEW rules
+
+Output:
 """
+        
         try:
-            new_insights_text = self._call_llm(prompt)
-        except Exception:
-            return current_playbook_text
+            response = self._call_llm(prompt)
+            rules = []
+            for line in response.split('\n'):
+                if line.strip().startswith('- '):
+                    rule_text = line.strip()[2:]
+                    rules.append({
+                        'rule': rule_text,
+                        'context': self._infer_context_from_rule(rule_text),
+                        'pattern': 'see rule text'
+                    })
+            print(f"Curator: Extracted {len(rules)} rule candidates")
+            return rules
+        except Exception as e:
+            print(f"Curator: Failed to extract rules: {e}")
+            return []
+    
+    def _infer_context_from_rule(self, rule_text):
+        """Infer what the rule applies to from its text."""
+        rule_lower = rule_text.lower()
         
-        new_items = [line.strip()[2:] for line in new_insights_text.split('\n') if line.strip().startswith('- ')]
+        if 'operationid' in rule_lower:
+            return 'operationId'
+        elif 'parameter' in rule_lower or 'path' in rule_lower:
+            return 'parameters'
+        elif 'response' in rule_lower:
+            return 'responses'
+        elif 'schema' in rule_lower or 'component' in rule_lower:
+            return 'schemas'
+        elif 'etag' in rule_lower or 'header' in rule_lower:
+            return 'headers'
+        elif 'delete' in rule_lower:
+            return 'delete_operations'
+        else:
+            return 'general'
+    
+    def _validate_against_style_guide(self, rule_candidates):
+        """
+        Validate that new rules align with (don't contradict) the Style Guide.
+        """
+        if not rule_candidates:
+            return []
         
-        if not new_items:
-            return current_playbook_text
+        print(f"Curator: Validating {len(rule_candidates)} candidates against Style Guide...")
+        
+        # Retrieve relevant Style Guide sections
+        style_context = self._retrieve_style_guidelines()
+        
+        validated = []
+        for candidate in rule_candidates:
+            prompt = f"""
+You are a Standards Compliance Validator.
 
-        # Deduplication (using existing vector store)
-        updated_playbook_items = [line.strip() for line in current_playbook_text.split('\n') if line.strip().startswith('-')]
-        if not updated_playbook_items: updated_playbook_items = [current_playbook_text.strip()]
+AUTHORITATIVE STYLE GUIDE (excerpt):
+{style_context[:8000]}
 
-        print(f"Curator: Processing {len(new_items)} new candidates...")
-        
-        for new_item in new_items:
-            # Embed NEW item
-            new_emb = self.vector_store.embed_text(new_item)
-            is_dupe = False
+PROPOSED NEW RULE (from learning system):
+{candidate['rule']}
+
+Task:
+Check if this proposed rule ALIGNS with or CONTRADICTS the Style Guide.
+
+Output one of:
+- "VALID" if it aligns/reinforces the Style Guide
+- "CONTRADICTION" if it contradicts any Style Guide rule
+- "NOT_COVERED" if Style Guide is silent on this topic
+
+Output format: Just the status word.
+"""
             
-            # Compare against existing Playbook (brute force for now, playbook is small)
-            for existing in updated_playbook_items:
-                ex_emb = self.vector_store.embed_text(existing)
-                sim = cosine_similarity([new_emb], [ex_emb])[0][0]
-                if sim > 0.85:
-                    is_dupe = True
+            try:
+                validation_result = self._call_llm(prompt).strip().upper()
+                
+                if "VALID" in validation_result:
+                    validated.append(candidate)
+                    print(f"  ✓ Validated: {candidate['rule'][:60]}...")
+                elif "CONTRADICTION" in validation_result:
+                    print(f"  ✗ REJECTED (contradicts Style Guide): {candidate['rule'][:60]}...")
+                elif "NOT_COVERED" in validation_result:
+                    # New rule for something Style Guide doesn't address - accept it
+                    validated.append(candidate)
+                    print(f"  ? Accepted (not in Style Guide): {candidate['rule'][:60]}...")
+                else:
+                    # Unclear response, be conservative and accept
+                    validated.append(candidate)
+                    
+            except Exception as e:
+                print(f"  ! Validation failed for rule, accepting anyway: {e}")
+                validated.append(candidate)
+                continue
+        
+        print(f"Curator: {len(validated)}/{len(rule_candidates)} rules validated")
+        return validated
+    
+    def _detect_and_resolve_conflicts(self, new_rules, existing_playbook):
+        """
+        Detect conflicts between new rules and existing playbook rules.
+        Resolve by keeping the MOST SPECIFIC or MOST RECENT rule.
+        """
+        if not new_rules:
+            return []
+        
+        print(f"Curator: Checking for conflicts with existing playbook...")
+        
+        existing_rules = self._parse_existing_playbook(existing_playbook)
+        
+        conflict_free = []
+        conflicts_detected = 0
+        
+        for new_rule in new_rules:
+            has_conflict = False
+            
+            for existing_rule in existing_rules:
+                # Quick heuristic: skip if contexts are completely different
+                if new_rule['context'] != existing_rule['context'] and \
+                   new_rule['context'] != 'general' and \
+                   existing_rule['context'] != 'general':
+                    continue
+                
+                # Check for semantic conflict
+                conflict_check = self._check_rule_conflict(new_rule, existing_rule)
+                
+                if conflict_check['has_conflict']:
+                    has_conflict = True
+                    conflicts_detected += 1
+                    
+                    # Resolve: prefer new rule (it reflects recent issues)
+                    print(f"  ! Conflict detected:")
+                    print(f"    Existing: {existing_rule['rule'][:50]}...")
+                    print(f"    New: {new_rule['rule'][:50]}...")
+                    print(f"    Resolution: Replacing with new rule (more recent)")
+                    
+                    # Mark existing rule for removal
+                    existing_rule['_remove'] = True
+                    conflict_free.append(new_rule)
                     break
             
-            if not is_dupe:
-                updated_playbook_items.append(f"- {new_item}")
-            else:
-                print(f"Skipped duplicate: {new_item[:30]}...")
+            if not has_conflict:
+                conflict_free.append(new_rule)
+        
+        if conflicts_detected > 0:
+            print(f"Curator: Resolved {conflicts_detected} conflicts")
+        
+        return conflict_free
+    
+    def _parse_existing_playbook(self, playbook_text):
+        """Parse existing playbook into structured rules."""
+        rules = []
+        for line in playbook_text.split('\n'):
+            line = line.strip()
+            if line.startswith('- '):
+                rule_text = line[2:]
+                rules.append({
+                    'rule': rule_text,
+                    'context': self._infer_context_from_rule(rule_text),
+                    'original_line': line
+                })
+        return rules
+    
+    def _check_rule_conflict(self, new_rule, existing_rule):
+        """
+        Use LLM to detect if two rules conflict.
+        """
+        prompt = f"""
+You are a Logic Validator.
 
-        return "\n".join(updated_playbook_items)
+Rule A (existing): {existing_rule['rule']}
+Rule B (new): {new_rule['rule']}
+
+Question: Do these rules CONTRADICT each other?
+
+Two rules contradict if:
+- They apply to the same thing but prescribe opposite actions
+- Following both simultaneously is impossible
+- Example: "Use snake_case for X" vs "Use camelCase for X"
+
+Output ONLY:
+- "NO_CONFLICT" if they can coexist
+- "CONFLICT" if they contradict
+"""
+        
+        try:
+            result = self._call_llm(prompt).strip().upper()
+            
+            if "CONFLICT" in result and "NO_CONFLICT" not in result:
+                return {'has_conflict': True, 'reason': 'contradictory rules'}
+            else:
+                return {'has_conflict': False, 'reason': 'compatible'}
+                
+        except Exception as e:
+            print(f"  ! Conflict check failed: {e}")
+            # Conservative: assume no conflict if check fails
+            return {'has_conflict': False, 'reason': 'check_failed'}
+    
+    def _merge_rules_with_deduplication(self, existing_playbook, new_rules):
+        """
+        Merge new rules with existing playbook, with semantic deduplication.
+        """
+        # Parse existing playbook
+        existing_rules = self._parse_existing_playbook(existing_playbook)
+        
+        # Remove rules marked for deletion (from conflict resolution)
+        existing_rules = [r for r in existing_rules if not r.get('_remove', False)]
+        
+        # Convert to text format
+        merged_lines = [f"- {r['rule']}" for r in existing_rules]
+        
+        # Add new rules with semantic deduplication
+        print(f"Curator: Merging {len(new_rules)} new rules with deduplication...")
+        added_count = 0
+        
+        for new_rule in new_rules:
+            new_text = new_rule['rule']
+            new_emb = self.vector_store.embed_text(new_text)
+            
+            is_duplicate = False
+            for existing_rule in existing_rules:
+                existing_text = existing_rule['rule']
+                existing_emb = self.vector_store.embed_text(existing_text)
+                
+                similarity = cosine_similarity([new_emb], [existing_emb])[0][0]
+                
+                if similarity > 0.85:
+                    is_duplicate = True
+                    print(f"  Skipped duplicate: {new_text[:50]}...")
+                    break
+            
+            if not is_duplicate:
+                merged_lines.append(f"- {new_text}")
+                added_count += 1
+                print(f"  + Added: {new_text[:60]}...")
+        
+        print(f"Curator: Added {added_count} new rules to playbook")
+        return "\n".join(merged_lines)
+
+    def validate_playbook_consistency(self, playbook_text: str) -> str:
+        """
+        Validate playbook with INCREMENTAL verification.
+        Only checks conflicts for rules NOT in the verified manifest (verified_rules.json).
+        """
+        import json
+        
+        print("\n" + "="*60)
+        print("PLAYBOOK CONSISTENCY VALIDATION (INCREMENTAL)")
+        print("="*60)
+        
+        # Parse existing playbook
+        rules = self._parse_existing_playbook(playbook_text)
+        if not rules:
+            print("⚠ No rules found in playbook, skipping validation")
+            return playbook_text
+            
+        # Load Verified Manifest
+        verified_hashes = set()
+        manifest_path = "ace/verified_rules.json"
+        
+        # Also try absolute path if needed
+        if not os.path.exists(manifest_path):
+             manifest_path = os.path.join(os.getcwd(), "ace", "verified_rules.json")
+
+        if os.path.exists(manifest_path):
+            try:
+                with open(manifest_path, 'r') as f:
+                    verified_hashes = set(json.load(f))
+                print(f"✓ Loaded {len(verified_hashes)} verified rule hashes.")
+            except Exception as e:
+                print(f"⚠ Could not load manifest: {e}")
+
+        # Identify New vs Verified Rules
+        new_rules = []
+        known_rules = []
+        
+        for rule in rules:
+            rule_hash = hashlib.md5(rule['rule'].encode('utf-8')).hexdigest()
+            rule['hash'] = rule_hash
+            if rule_hash in verified_hashes:
+                known_rules.append(rule)
+            else:
+                new_rules.append(rule)
+        
+        if not new_rules:
+            print("✓ All rules verified in manifest. Skipping conflict check.")
+            return playbook_text
+
+        print(f"🔍 Validating {len(new_rules)} NEW rules against {len(known_rules)} existing rules...")
+
+        # 1. Validate New Rules against Style Guide
+        # (Assuming verified rules are already style-compliant)
+        try:
+            style_guide_rules = self._validate_against_style_guide(new_rules)
+            if len(style_guide_rules) < len(new_rules):
+                diff = len(new_rules) - len(style_guide_rules)
+                print(f"✂️ Removed {diff} new rules that contradicted Style Guide.")
+                new_rules = style_guide_rules
+        except Exception as e:
+            print(f"⚠ Style check failed: {e}")
+
+        # 2. Detect Conflicts (Incremental)
+        # We need to check:
+        # A. New vs New
+        # B. New vs Verified
+        
+        conflicts = []
+        conflicts_detected = 0
+        
+        # We only need to iterate over NEW rules as the 'primary' check, 
+        # comparing them against EVERYONE else (new + known).
+        
+        for i, rule_a in enumerate(new_rules):
+            # Compare with other NEW rules (forward only to avoid double counting)
+            for j, rule_b in enumerate(new_rules[i+1:], start=i+1):
+                conflict = self._check_pair_incremental(rule_a, rule_b)
+                if conflict:
+                    conflicts.append(conflict)
+                    conflicts_detected += 1
+            
+            # Compare with ALL KNOWN rules
+            for rule_b in known_rules:
+                conflict = self._check_pair_incremental(rule_a, rule_b)
+                if conflict:
+                    conflicts.append(conflict)
+                    conflicts_detected += 1
+
+        if conflicts_detected == 0:
+            print("✓ No conflicts detected.")
+            # Update manifest
+            all_hashes = [r['hash'] for r in new_rules + known_rules]
+            with open(manifest_path, 'w') as f:
+                json.dump(all_hashes, f)
+            print("✓ Updated verified_rules.json")
+            return playbook_text 
+
+        # Prune conflicts
+        print(f"\n✂️ Pruning {conflicts_detected} conflicts...")
+        rules_to_remove = set()
+        
+        for rule_a, rule_b, reason in conflicts:
+            # Prefer keeping known rules over new rules (stability)
+            hash_a_verified = rule_a['hash'] in verified_hashes
+            hash_b_verified = rule_b['hash'] in verified_hashes
+            
+            if hash_a_verified and not hash_b_verified:
+                rules_to_remove.add(rule_b['rule'])
+                print(f"  ✂️ Removing (new conflicting with verified): {rule_b['rule'][:40]}...")
+            elif hash_b_verified and not hash_a_verified:
+                rules_to_remove.add(rule_a['rule'])
+                print(f"  ✂️ Removing (new conflicting with verified): {rule_a['rule'][:40]}...")
+            else:
+                # Both new, use length heuristic
+                if len(rule_a['rule']) > len(rule_b['rule']):
+                    rules_to_remove.add(rule_b['rule'])
+                else:
+                    rules_to_remove.add(rule_a['rule'])
+                    
+        # Filter and Rebuild
+        final_rules = [r for r in new_rules + known_rules if r['rule'] not in rules_to_remove]
+        
+        # Save Manifest
+        final_hashes = [hashlib.md5(r['rule'].encode('utf-8')).hexdigest() for r in final_rules]
+        with open(manifest_path, 'w') as f:
+            json.dump(final_hashes, f)
+            
+        print(f"\n✓ Validation complete: Kept {len(final_rules)} rules.")
+        print("="*60 + "\n")
+        
+        return "\n".join([f"- {r['rule']}" for r in final_rules])
+
+    def _check_pair_incremental(self, rule_a, rule_b):
+        """Helper to check pair conflict with optimization."""
+        # Quick heuristic context check
+        if rule_a['context'] != rule_b['context'] and \
+           rule_a['context'] != 'general' and \
+           rule_b['context'] != 'general':
+            return None
+
+        # Opt: Semantic Sim
+        try:
+            emb_a = self.vector_store.embed_text(rule_a['rule'])
+            emb_b = self.vector_store.embed_text(rule_b['rule'])
+            # Ensure embeddings are 2D arrays for sklearn
+            if len(emb_a.shape) == 1: emb_a = [emb_a]
+            if len(emb_b.shape) == 1: emb_b = [emb_b]
+            sim = cosine_similarity(emb_a, emb_b)[0][0]
+            if sim < 0.75: return None
+        except: pass
+        
+        # Logic Check
+        check = self._check_rule_conflict(rule_a, rule_b)
+        if check['has_conflict']:
+            return (rule_a, rule_b, check['reason'])
+        return None
 
     def run(self, product_spec_path, style_guide_path, epochs=6):
         # 1. Build Knowledge Base (RAG)
@@ -464,6 +957,28 @@ Instructions:
             print("Loaded existing Context Playbook from disk.")
         else:
             context_playbook = "- Follow standard RESTful practices.\n- Ensure valid YAML output."
+        
+        # HASH CHECK: Skip validation if playbook hasn't changed
+        current_hash = hashlib.md5(context_playbook.encode('utf-8')).hexdigest()
+        hash_file = "ace/context_playbook.md5"
+        
+        should_validate = True
+        if os.path.exists(hash_file):
+            with open(hash_file, "r") as f:
+                stored_hash = f.read().strip()
+            if stored_hash == current_hash:
+                print("✓ Playbook unchanged (hash match). Skipping validation.")
+                should_validate = False
+        
+        # Validate playbook consistency before starting epochs
+        if should_validate:
+            context_playbook = self.validate_playbook_consistency(context_playbook)
+            # Update hash after validation (using the CLEANED version if it changed, or original)
+            new_hash = hashlib.md5(context_playbook.encode('utf-8')).hexdigest()
+            with open(hash_file, "w") as f:
+                f.write(new_hash)
+                print(f"✓ Validated and hashed playbook ({new_hash[:8]})")
+        
         final_oas = ""
         previous_critique_len = 0
 

@@ -58,17 +58,29 @@ Instead of a single RAG call, the Generator employs a **Two-Pass Discovery Mecha
 3.  **Pass 3: Style Guide Enforcement**
     *   The Agent retrieves **ALL** available style guide rules via metadata filtering (`get_all_by_metadata`). This ensures no rule is left behind due to search relevance cutoffs.
 
-### B. The Context Playbook (Dynamic Memory)
-The Agent maintains a `context_playbook`—a mutable list of guidelines that evolves over time.
-*   **Initial State**: Standard REST/YAML rules.
-*   **Evolution**: After every epoch, the **Curator** analyzes the **Reflector's** critique and adds new rules to the playbook (e.g., "- Always return 404 for GET /id").
-*   **Deduplication**: New rules are embedding-matched against existing ones to prevent bloat.
-*   **Persistence**: The playbook is saved to `context_playbook.md`. On subsequent runs, the Agent loads this file, meaning it **never forgets a lesson** and improves permanently over time.
+### B. The Context Playbook (Dynamic Memory) - **Enhanced v3.0**
+The Agent maintains a `context_playbook`—a **structured, conflict-free knowledge base** that evolves over time.
+
+**Key Features:**
+*   **Structured Format**: Organized into priority sections with visual emphasis:
+    *   🚨 **CRITICAL** (>75% violation rate) - Frequently missed rules with before/after examples
+    *   ⚠️ **MODERATE** (25-75% violation rate) - Occasionally missed rules
+    *   📌 **EDGE CASES** - Special scenarios
+    *   ✅ **CHECKLIST** - Pre-submission verification items
+*   **Conflict Prevention**: Multi-layered validation ensures playbook remains contradiction-free:
+    1. **Style Guide Validation** - New rules must align with authoritative Style Guide
+    2. **Conflict Detection** - Semantic comparison with existing rules
+    3. **Intelligent Resolution** - Prefers new rules (recency bias) when conflicts arise
+    4. **Semantic Deduplication** - Embedding-based similarity check (>0.85 threshold)
+*   **Persistence**: Saved to `context_playbook.md`. The Agent **never forgets a lesson** and improves permanently.
 
 ### C. The Epoch: A Self-Improvement Cycle
-An "Epoch" represents one full pass of the Agent trying to build the perfect spec. We employ a **Quantitative Convergence** strategy:
-*   **Hard Cap**: The system runs for a maximum of `N` epochs (default: 3) to prevent infinite loops.
-*   **Early Stopping**: If the `Critique Length` (amount of feedback) drops by **less than 5%** between epochs, we assume diminishing returns and stop early.
+An "Epoch" represents one full pass of the Agent trying to build the perfect spec. We employ a **Refined Quantitative Convergence** strategy:
+*   **Hard Cap**: The system runs for a maximum of `N` epochs (default: **6**, increased from 3) to allow sufficient learning time.
+*   **Smart Early Stopping**: Stops only when improvement is **positive but tiny** (0-5%):
+    *   If `0 < improvement <= 5%`: Stop (diminishing returns)
+    *   If `improvement > 5%`: Continue (significant progress)
+    *   If `improvement <= 0`: Continue (allow recovery from bad epochs)
 
 
 **Step 1: Generate (The Synthesizer)**
@@ -81,11 +93,22 @@ An "Epoch" represents one full pass of the Agent trying to build the perfect spe
 *   It understands the *intent* of a Style Guide rule (e.g., "Error messages must be helpful") and judges the *meaning* of the generated API's error responses.
 *   It detects subtle issues like "semantic versioning violations" or "inconsistent naming patterns" that a standard linter would miss.
 
-**Step 3: Curate (The Learning)**
-*   The **Curator** reads the Critique.
-*   It asks: *"What rule did we forget?"*
-*   It updates the `Context Playbook` with a new, imperative rule (e.g., " - GET requests MUST return 200 OK, never 201.").
-**Result**: The next Epoch starts with this new rule in memory, guaranteed not to make the same mistake again.
+**Step 3: Curate (The Learning) - Enhanced v3.0**
+The **Curator** now implements a **5-step conflict prevention pipeline**:
+
+1. **Extract Rule Candidates**: Parses critique into structured rules with context (operationId, schemas, headers, etc.)
+2. **Validate Against Style Guide**: Checks each rule against authoritative Style Guide
+   - Rejects contradictions
+   - Accepts rules that align or are not covered
+3. **Detect Conflicts**: Compares new rules with existing playbook
+   - Context-aware filtering (skip unrelated contexts)
+   - LLM-based semantic conflict detection
+4. **Resolve Conflicts**: Intelligent resolution strategy
+   - Prefers new rule (recency bias - reflects recent issues)
+   - Marks existing rule for removal
+5. **Semantic Deduplication**: Embedding-based similarity check (>0.85 threshold)
+
+**Result**: The playbook remains **conflict-free**, **aligned with Style Guide**, and **deduplicated**.
 
 ### D. Hallucination Mitigation Strategies
 We employ several architectural pillars to prevent the model from "inventing" features:
@@ -103,6 +126,22 @@ We employ several architectural pillars to prevent the model from "inventing" fe
 3.  **Structural Validation (The Reflector)**:
     *   While the Reflector focuses on Style, it acts as a strong filter against *Protocol Hallucinations* (e.g., using non-existent HTTP verbs or status codes).
 
+
+### D. Playbook Validation & Incremental Logic (Performance)
+To maintain a high-quality, conflict-free playbook without sacrificing startup speed, we use a hybrid validation strategy:
+
+1.  **Offline Validation (`validate_playbook.py`)**:
+    *   **Purpose**: Deep cleaning of the playbook.
+    *   **Ops**: Deduplication, Auto-Categorization, and **Exhaustive Conflict Detection** ($O(N^2)$).
+    *   **Artifacts**: Generates `context_playbook_v3.md` (clean content) and **`verified_rules.json`** (signed manifest).
+    *   **Command**: `python ace/validate_playbook.py --playbook ace/context_playbook.md --output ace/context_playbook.md`
+
+2.  **Online Incremental Validation (`ace_agent.py`)**:
+    *   **Purpose**: Zero-latency startup.
+    *   **Logic**: The Agent loads `verified_rules.json`.
+    *   **Optimization**: It **skips** checking conflicts for any rule present in the manifest.
+    *   **Delta Check**: It only verifies **New Rules** against the existing knowledge base ($O(N_{new} \times N_{total})$).
+    *   **Result**: The agent starts in milliseconds even with a large playbook, while maintaining strict logical consistency.
 
 ---
 
@@ -144,12 +183,16 @@ The critical feedback loop.
     *   Asks the LLM to critique *only* that specific endpoint against the rules.
 *   **Output**: A clean string of "NO_ISSUES" or a bulleted list of violations.
 
-### `curator(self, current_playbook, critique)`
-The memory manager.
+### `curator(self, current_playbook, critique)` - **Enhanced v3.0**
+The memory manager with multi-layered conflict prevention.
 *   **Input**: The previous playbook and the latest specific critique.
-*   **Logic**: Asks the LLM to generalize the specific critique into a universal rule.
-*   **Dedup Engine**: Embeds the new rule and checks cosine similarity against existing rules (>0.85 threshold) to prevent duplicates.
-*   **Output**: The updated, deduplicated Playbook string.
+*   **5-Step Pipeline**:
+    1. Extract rule candidates from critique
+    2. Validate against Style Guide (reject contradictions)
+    3. Detect conflicts with existing playbook (LLM-based semantic comparison)
+    4. Resolve conflicts (prefer new rule with recency bias)
+    5. Semantic deduplication (>0.85 similarity threshold)
+*   **Output**: Updated playbook that is conflict-free, Style Guide-aligned, and deduplicated.
 
 ### `run(self, ...)`
 The main entry point that executes the `Generative -> Reflective -> Curative` loop for `N` epochs.
