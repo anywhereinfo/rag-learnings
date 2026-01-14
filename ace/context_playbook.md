@@ -1,118 +1,135 @@
+# Context Playbook (Validated & Cleaned)
+
+## 🚨 CRITICAL (Violated in >75% of generations)
 - Follow standard RESTful practices.
-- Ensure valid YAML output.
-- Ensure the OpenAPI Specification includes management endpoints for all primary domain entities identified in the product requirements document.
 - Apply security requirements at the individual path or operation level, not globally.
-- Use an integer representing Megabits per second (Mbps) for all bandwidth-related fields and include an `_mbps` suffix in the field name.
-- Name all fields with `format: date-time` using an `_at` suffix.
 - Do not include user-specific identifiers in resource payloads; derive user identity from the authentication token for auditing purposes.
 - Structure all API paths with a canonical product namespace and version prefix (e.g., `/{product}/v{version}/{resource}`).
 - Define all 4xx and 5xx error responses to use the `application/problem+json` content type and conform to the RFC 9457 Problem Details standard.
-- Include definitions for common error responses such as 403 (Forbidden) and 429 (Too Many Requests) in the API contract.
 - Require an `Idempotency-Key` header for all `POST` operations that create resources to ensure safe retries.
-- Use the asynchronous Long-Running Operation (LRO) pattern for any operation that may exceed 2-3 seconds by returning a `202 Accepted` with a `Location` header pointing to an operation status resource.
-- Write operation summaries as short, action-oriented phrases from the user's perspective.
-- Use `application/merge-patch+json` as the content type for all `PATCH` operations.
-- Use specific verbs in the `operationId` to reflect the HTTP method (e.g., `patchResource`, `deleteResource`).
 - Use a single, canonical schema for all resource identifiers.
-- Order OpenAPI operation fields consistently for readability, placing `summary`, `tags`, and `operationId` at the top of the operation block.
-- Use `start_at` and `end_at` query parameters with `format: date-time` for specifying time ranges instead of enums or magic strings.
-- Implement conditional `GET` requests for all cacheable resources by including an `ETag` header in the response and supporting the `If-None-Match` header in the request.
 - For all endpoints that return a collection, implement pagination by accepting `limit` and `offset` query parameters and wrapping the response in a top-level object containing a `data` array and a `pagination` metadata object.
 - Use plural nouns for resource names in URIs that represent collections.
 - Ensure all JSON request and response bodies are top-level objects, not arrays or primitives.
-- Use the `207 Multi-Status` response code for batch operations to report per-item success or failure.
-- A `DELETE` request MUST NOT have a request body.
-- Use the `POST` method for batch or bulk actions, such as deleting multiple resources at once, on an action-style endpoint (e.g., `/resources:delete`).
-- Represent all primary domain entities identified in the product specification as manageable API resources.
-- Define all resource identifiers as `type: string` with `format: uuid`.
-- Mandate the `Idempotency-Key` header for all LRO-initiating requests (POST, PUT, PATCH, DELETE).
-- Include a `Location` header in all `202 Accepted` responses for LROs, pointing to the operation status resource.
-- Include the `Retry-After` header in `202 Accepted` responses to guide client polling.
 - Ensure `DELETE` operations, both synchronous (204) and asynchronous (202), never return a response body.
-- Include the `ETag` header in `304 Not Modified` responses.
-- Group all operations using tags based on the primary resource name, not on the capability.
-- Use the suffixes `_from` and `_until` for parameters defining a date or time range.
-- Define a `pattern` (regex) and an `example` for any parameter that uses a custom string format.
-- Use `last_updated_at` instead of `updated_at` in resource metadata schemas to align with canonical models.
-- Structure schemas using `allOf` by placing `type`, `description`, and the `allOf` keyword at the same level.
-- Write informative response descriptions that detail the specific state or data being returned.
 - Create endpoints for all primary domain entities identified in the product specification, such as `Fabric Connections` and `Fabric Services`.
 - Use `lower_snake_case` for all path, query, and header parameters, and for all JSON object properties in request bodies, response bodies, and error payloads.
 - Name resource identifier path parameters using the format `<singular_resource_name>_id` (e.g., use `{gateway_id}` for the `/gateways` collection).
-- Name all fields representing a timestamp with a time component using the `_at` suffix (e.g., `expires_at`).
-- Mark `id`, `created_at`, and `last_updated_at` as required fields in any `ResourceMetadata` schema.
-- Include a `metadata` object in the `Operation` schema for long-running operations to provide real-time status information.
 - Adhere strictly to the LPDP-Mini v1.0 profile for the `Problem` schema by omitting optional RFC 9457 fields like `detail`, `instance`, `status`, and `type` from the top-level object.
-- Add the mandatory `x-data-classification` extension property to every operation to specify data sensitivity.
-- Include an `ETag` header in `200 OK` responses for all collection and instance GET endpoints to support conditional requests.
-- Document the `429 Too Many Requests` response for all endpoints subject to rate limiting.
-- Provide a detailed `description` field for every operation, in addition to the `summary`.
-- For `PATCH` operations that may complete synchronously or asynchronously, define both a `200 OK` response (for synchronous success) and a `202 Accepted` response (for LRO).
-- Use `lower_snake_case` for the names of reusable components in the OpenAPI specification (e.g., `gateway_id_param` instead of `GatewayId`).
-- For batch creation endpoints, the request body MUST be a direct JSON array of resource objects, not an object containing an array.
-- For batch `POST` operations that may complete synchronously, define a `201 Created` response for when all items are created successfully.
-- Document the `409 Conflict` response for operations where a resource may be locked by another process.
-- Write detailed parameter descriptions that explain default values, enum options, and filtering behavior.
-- Use `lower_snake_case` for `operationId` values (e.g., `get_operation`).
 - Design API paths around nouns (resources), not verbs (actions); for authentication, create a session resource via `POST /sessions`.
 - Return a `201 Created` status code with a `Location` header upon successful resource creation via `POST`.
 - Never use the `GET` method for state-changing operations; use `DELETE` on the session resource URI for logout.
 - All API paths MUST include a major version segment (e.g., `/v1/`).
 - Use query parameters for filtering collections, not path segments.
-- Wrap all collection GET responses in a top-level object containing a `data` array and a `pagination` object.
-- Define reusable headers like `Location` in the `components/headers` section and reference them with `$ref`.
 - Require the `If-Match` header for all `PUT`, `PATCH`, and `DELETE` requests to ensure concurrency control.
 - Use `PascalCase` for all keys of reusable components in the `components` section (e.g., `ResourceId`, `BadRequest`, `IdempotencyKey`).
 - Represent all monetary values using a canonical `Money` object with an integer `amount` in minor units and a string `currency` code.
-- Define a regex `pattern` for all resource identifier fields that have a `uuid` format.
-- Base all `tags` on the plural resource name (e.g., "Gateways"); do not use capabilities (e.g., "Authentication").
-- Define and reuse canonical schemas for common data types (e.g., `BandwidthMbps`) instead of defining them inline.
-- Frame the global `info.description` to answer "What problem does this solve for the consumer?".
-- Use `verbResource` `camelCase` for all `operationId` values (e.g., `createSession`).
-- Do not use the `ETag` header on responses for paginated collections.
-- Add the `x-operation-type: "lro"` extension to all operations that initiate an asynchronous, long-running process.
-- Write operation `summary` fields as short, specific, action-oriented phrases from the user's perspective (e.g., "Get a gateway by ID").
-- Adopt a standard field order within operation definitions for improved readability.
-- Define the description for a request body at the top level of the `requestBody` object, not within the nested `schema` object.
-- Ensure the `pagination` object in collection responses includes a required `total` field.
-- If an endpoint's response includes an `ETag` header, document the corresponding `If-None-Match` request header in its parameters.
 - Use query parameters, not path segments, to filter resource collections (e.g., `GET /api-keys?type=internal`).
-- Add the `x-idempotent: true` extension to any `POST` or `PATCH` operation that supports an `Idempotency-Key` header.
-- Define reusable request headers in `components.parameters` with `in: header`; reserve `components.headers` for reusable response headers.
-- Structure batch multi-status responses with separate `successes` and `failures` arrays, conforming to the standard `BatchMultiStatusResponseFull` or `BatchMultiStatusResponseCompact` schema.
 - Do not expose non-canonical, internal identifiers (e.g., `customer_uid`, `user_uid`) in public API contracts; use opaque, server-generated resource IDs.
 - Increment the minor or patch version in `info.version` for non-breaking additive changes and hotfixes, respectively.
-- Omit the HTTP status code and reason phrase from the `description` of reusable error responses to avoid redundancy.
 - Do not implement proprietary authentication endpoints that accept raw user credentials; delegate authentication to the designated central Identity Provider (IdP) and accept only standard tokens.
-- Group all operations using tags based on the resource name (e.g., `Sessions`), not the function (e.g., `Authentication`).
-- Do not use the `DELETE` verb on singleton resources; use `POST` for actions on singletons (e.g., `POST /resource/current/logout`).
 - Do not include functional or role-based segments like `/admin` in URI paths; enforce access control using security scopes.
-- Define all request and response body schemas as reusable components in the `components` section to promote consistency and maintainability.
-- Write the `requestBody.description` to describe the purpose of the entire payload, not a single field within it.
-- Enhance operation descriptions to clarify the full business impact and consequences of the action, such as data retention or recovery implications.
 - Use the most precise `x-data-classification` value available and clarify in the description why a specific classification is used if it is not immediately obvious.
-- Document the `406 Not Acceptable` error response for all endpoints that support content negotiation via the `Accept` header.
 - Use descriptive, specific names for reusable components to avoid ambiguity and naming collisions (e.g., `PaginationLimitParameter` instead of `Limit`).
 - Name all query parameters using `lower_snake_case`.
 - Wrap all collection responses, including those from batch creation operations, in a top-level object with a `data` key to allow for future metadata.
-- Ensure the `name` property inside a referenced path parameter component exactly matches the `snake_case` variable in the path string.
 - Name reusable header parameter components to match the standard HTTP header format (e.g., `If-None-Match`, not `IfNoneMatch`).
+- Use `limit` and `offset` as the standard query parameter names for pagination.
+- Do not use the `default` keyword in any schema or parameter definition.
+- Ensure all JSON payload property names, including those in referenced standards like LROs, conform to `lower_snake_case`.
+- Wrap request bodies that are lists of items in a top-level JSON object.
+- Adhere to the `verbResource` convention for `operationId` and omit superfluous words like "ById".
+- Utilize canonical data model (CDM) schemas for common business concepts instead of primitive types.
+- Apply security requirements at the individual operation level, not globally, to ensure precise, per-endpoint scope control.
+
+## ⚠️ MODERATE (Violated in 25-75% of generations)
+- Use an integer representing Megabits per second (Mbps) for all bandwidth-related fields and include an `_mbps` suffix in the field name.
+- Name all fields with `format: date-time` using an `_at` suffix.
+- Write operation summaries as short, action-oriented phrases from the user's perspective.
+- Use `application/merge-patch+json` as the content type for all `PATCH` operations.
+- Use specific verbs in the `operationId` to reflect the HTTP method (e.g., `patchResource`, `deleteResource`).
+- Order OpenAPI operation fields consistently for readability, placing `summary`, `tags`, and `operationId` at the top of the operation block.
+- Use `start_at` and `end_at` query parameters with `format: date-time` for specifying time ranges instead of enums or magic strings.
+- Include the `ETag` header in `304 Not Modified` responses.
+- Group all operations using tags based on the primary resource name, not on the capability.
+- Use `last_updated_at` instead of `updated_at` in resource metadata schemas to align with canonical models.
+- Structure schemas using `allOf` by placing `type`, `description`, and the `allOf` keyword at the same level.
+- Write informative response descriptions that detail the specific state or data being returned.
+- Name all fields representing a timestamp with a time component using the `_at` suffix (e.g., `expires_at`).
+- Use `lower_snake_case` for the names of reusable components in the OpenAPI specification (e.g., `gateway_id_param` instead of `GatewayId`).
+- Write detailed parameter descriptions that explain default values, enum options, and filtering behavior.
+- Use `lower_snake_case` for `operationId` values (e.g., `get_operation`).
+- Define reusable headers like `Location` in the `components/headers` section and reference them with `$ref`.
+- Base all `tags` on the plural resource name (e.g., "Gateways"); do not use capabilities (e.g., "Authentication").
+- Define and reuse canonical schemas for common data types (e.g., `BandwidthMbps`) instead of defining them inline.
+- Frame the global `info.description` to answer "What problem does this solve for the consumer?".
+- Write operation `summary` fields as short, specific, action-oriented phrases from the user's perspective (e.g., "Get a gateway by ID").
+- Adopt a standard field order within operation definitions for improved readability.
+- Define reusable request headers in `components.parameters` with `in: header`; reserve `components.headers` for reusable response headers.
+- Omit the HTTP status code and reason phrase from the `description` of reusable error responses to avoid redundancy.
+- Write the `requestBody.description` to describe the purpose of the entire payload, not a single field within it.
+- Enhance operation descriptions to clarify the full business impact and consequences of the action, such as data retention or recovery implications.
 - Place the `description` field as the first property within a response object to improve readability.
 - Suffix property names for bandwidth measurements with `_mbps`.
+- Position descriptive fields like `summary` and `tags` at the top of an operation definition.
+- Place schema metadata keywords like `description` as siblings to `properties`, not as children within it.
+- Enhance the description of the `If-None-Match` parameter to explicitly state that clients SHOULD send it on subsequent GET requests for a resource.
+- Place descriptive fields like `summary` and `description` at the beginning of an object to improve readability.
+- Position the `example` keyword as a sibling to other schema properties like `type` and `description`, not as a child of another property.
+- Write the `info.description` to describe the business capability the API unlocks, not its technical implementation.
+- Write `summary` descriptions that are specific to the HTTP method's behavior (e.g., 'Partially update a gateway' for PATCH).
+- Ensure response descriptions are concise and confirm the outcome rather than repeating the operation's summary.
+- In a `requestBody` definition, place metadata fields like `description` and `required` before the `content` object.
+- Write descriptive, user-centric `summary` fields that clearly state the action and outcome.
+- Write response descriptions that clearly state the successful outcome of the operation, not just echo the resource name.
+
+## 📌 EDGE CASES
+- Use the asynchronous Long-Running Operation (LRO) pattern for any operation that may exceed 2-3 seconds by returning a `202 Accepted` with a `Location` header pointing to an operation status resource.
+- Implement conditional `GET` requests for all cacheable resources by including an `ETag` header in the response and supporting the `If-None-Match` header in the request.
+- Use the `207 Multi-Status` response code for batch operations to report per-item success or failure.
+- Use the `POST` method for batch or bulk actions, such as deleting multiple resources at once, on an action-style endpoint (e.g., `/resources:delete`).
+- Mandate the `Idempotency-Key` header for all LRO-initiating requests (POST, PUT, PATCH, DELETE).
+- Include a `metadata` object in the `Operation` schema for long-running operations to provide real-time status information.
+- For `PATCH` operations that may complete synchronously or asynchronously, define both a `200 OK` response (for synchronous success) and a `202 Accepted` response (for LRO).
+- For batch creation endpoints, the request body MUST be a direct JSON array of resource objects, not an object containing an array.
+- For batch `POST` operations that may complete synchronously, define a `201 Created` response for when all items are created successfully.
+- Document the `409 Conflict` response for operations where a resource may be locked by another process.
+- Add the `x-operation-type: "lro"` extension to all operations that initiate an asynchronous, long-running process.
+- Structure batch multi-status responses with separate `successes` and `failures` arrays, conforming to the standard `BatchMultiStatusResponseFull` or `BatchMultiStatusResponseCompact` schema.
+- Use a consistent response schema for all success outcomes of a batch operation.
+- Use the Long-Running Operation (LRO) pattern for any operation that cannot reliably complete within 2-3 seconds.
+- Return a `Cache-Control: no-store` header for all GET requests to an LRO status endpoint.
+
+## ✅ PRE-SUBMISSION CHECKLIST
+- Ensure valid YAML output.
+- Ensure the OpenAPI Specification includes management endpoints for all primary domain entities identified in the product requirements document.
+- Include definitions for common error responses such as 403 (Forbidden) and 429 (Too Many Requests) in the API contract.
+- A `DELETE` request MUST NOT have a request body.
+- Represent all primary domain entities identified in the product specification as manageable API resources.
+- Define all resource identifiers as `type: string` with `format: uuid`.
+- Include a `Location` header in all `202 Accepted` responses for LROs, pointing to the operation status resource.
+- Include the `Retry-After` header in `202 Accepted` responses to guide client polling.
+- Define a `pattern` (regex) and an `example` for any parameter that uses a custom string format.
+- Mark `id`, `created_at`, and `last_updated_at` as required fields in any `ResourceMetadata` schema.
+- Add the mandatory `x-data-classification` extension property to every operation to specify data sensitivity.
+- Include an `ETag` header in `200 OK` responses for all collection and instance GET endpoints to support conditional requests.
+- Document the `429 Too Many Requests` response for all endpoints subject to rate limiting.
+- Provide a detailed `description` field for every operation, in addition to the `summary`.
+- Define a regex `pattern` for all resource identifier fields that have a `uuid` format.
+- Define the description for a request body at the top level of the `requestBody` object, not within the nested `schema` object.
+- Ensure the `pagination` object in collection responses includes a required `total` field.
+- If an endpoint's response includes an `ETag` header, document the corresponding `If-None-Match` request header in its parameters.
+- Add the `x-idempotent: true` extension to any `POST` or `PATCH` operation that supports an `Idempotency-Key` header.
+- Define all request and response body schemas as reusable components in the `components` section to promote consistency and maintainability.
+- Document the `406 Not Acceptable` error response for all endpoints that support content negotiation via the `Accept` header.
+- Ensure the `name` property inside a referenced path parameter component exactly matches the `snake_case` variable in the path string.
 - Implement standard reusable schemas with all their defined fields, including optional ones, to ensure completeness.
 - Provide a top-level `example` block for all complex object schemas.
-- Use `limit` and `offset` as the standard query parameter names for pagination.
 - Define all response body schemas as reusable components and refer to them using `$ref`.
-- Do not use a top-level array as a request body; wrap the array in a JSON object.
-- Use a consistent response schema for all success outcomes of a batch operation.
-- Position descriptive fields like `summary` and `tags` at the top of an operation definition.
-- Use the Long-Running Operation (LRO) pattern for any operation that cannot reliably complete within 2-3 seconds.
 - Provide an `example` value for all parameters.
 - Ensure resource identifier names are consistent between URI path parameters and their corresponding fields in the resource model.
-- Place schema metadata keywords like `description` as siblings to `properties`, not as children within it.
 - Ensure schemas used for PATCH operations include all user-modifiable fields of the resource.
-- Enhance the description of the `If-None-Match` parameter to explicitly state that clients SHOULD send it on subsequent GET requests for a resource.
-- Prepend all API paths with a product or domain namespace (e.g., /mcgw).
-- Place descriptive fields like `summary` and `description` at the beginning of an object to improve readability.
 - Include a `total` field in the pagination metadata object to indicate the total number of available records.
-- Position the `example` keyword as a sibling to other schema properties like `type` and `description`, not as a child of another property.
+- Compose common resource metadata fields (`id`, `created_at`, `last_updated_at`) into resource schemas using a reusable `ResourceMetadata` component via `allOf`.
+- Define standard paginated collection response schemas as reusable components.
+- Provide a `description` for all defined headers explaining their purpose and expected values.

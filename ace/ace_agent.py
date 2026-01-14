@@ -674,6 +674,19 @@ Output format: Just the status word.
                    existing_rule['context'] != 'general':
                     continue
                 
+                # OPTIMIZATION: Semantic Similarity Filter
+                try:
+                    emb_new = self.vector_store.embed_text(new_rule['rule'])
+                    emb_old = self.vector_store.embed_text(existing_rule['rule'])
+                    if len(emb_new.shape) == 1: emb_new = [emb_new]
+                    if len(emb_old.shape) == 1: emb_old = [emb_old]
+                    
+                    sim = cosine_similarity(emb_new, emb_old)[0][0]
+                    if sim < 0.75:
+                        continue 
+                except Exception:
+                    pass # Fallback
+
                 # Check for semantic conflict
                 conflict_check = self._check_rule_conflict(new_rule, existing_rule)
                 
