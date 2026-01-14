@@ -491,15 +491,13 @@ Instructions:
             if previous_critique_len > 0:
                 improvement = (previous_critique_len - critique_len) / previous_critique_len
                 print(f"   Improvement vs last epoch: {round(improvement*100, 1)}%")
-                
-                # Only stop if improvement is POSITIVE but small (0-5%)
-                # If negative (getting worse) or large (>5%), keep going
-                if 0 < improvement < 0.05:
-                    print("   !! Diminishing returns detected (0-5% improvement). Stopping early.")
+                # Stop only if improvement is positive but tiny (0-5%)
+                if 0 < improvement <= 0.05:
+                    print("   !! Diminishing returns detected (0-5% positive improvement). Stopping early.")
                     break
-                elif improvement <= 0:
-                    print("   !! Critique size INCREASED. Agent needs more training - continuing...")
-            
+                else:
+                    print("   Improvement sufficient or negative; continuing training.")
+            # Update previous critique length for next epoch
             previous_critique_len = critique_len
 
             # 4. Curate (with Dedup)
