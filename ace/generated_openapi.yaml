@@ -1,196 +1,23 @@
 openapi: 3.0.3
 info:
   title: Multi-Cloud Gateway API
-  description: Use the Multi-Cloud Gateway (MCGW) API to programmatically create, manage, and delete a virtual routing service that allows customers to easily interconnect their cloud environments utilizing private connectivity. This API provides a simple, automated way to manage Layer 3 routing between Fabric Connections, Fabric Services, and Fabric Ports.
+  description: |-
+    The Multi-Cloud Gateway (MCGW) API provides a virtual routing service that allows customers to programmatically create, manage, and interconnect their cloud environments using private connectivity. This API enables the automation of multi-cloud networking, including the management of gateway instances, interfaces, and routing configurations.
   version: 1.0.0
-  contact:
-    name: Lumen API Support
-    email: api-support@example.com
 servers:
-  - url: https://api.lumen.com
+  - url: https://api.lumen.com/mcgw/v1
     description: Production Server
 tags:
   - name: Gateways
-    description: Manage Multi-Cloud Gateway (MCGW) instances.
+    description: Manage Multi-Cloud Gateway instances.
   - name: Interfaces
-    description: Manage interfaces associated with a Multi-Cloud Gateway.
+    description: Manage interfaces within a Multi-Cloud Gateway instance.
   - name: Routes
-    description: View routing information for a Multi-Cloud Gateway.
-  - name: API Keys
-    description: Administrative operations for managing API keys.
-  - name: Authentication
-    description: Operations for user authentication and session management.
+    description: View routing information for a Multi-Cloud Gateway instance.
   - name: Operations
-    description: Check the status of long-running asynchronous operations.
+    description: Track the status of long-running asynchronous operations.
 paths:
-  /mcgw/v1/sessions:
-    post:
-      summary: Create a session
-      description: Authenticates a user with a username and password to obtain a session token.
-      tags:
-        - Authentication
-      operationId: createSession
-      x-data-classification: Confidential
-      x-idempotent: true
-      requestBody:
-        description: User credentials for authentication.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Credentials'
-      responses:
-        '201':
-          description: Session created successfully.
-          headers:
-            Location:
-              $ref: '#/components/headers/Location'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Session'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-  /mcgw/v1/sessions/current:
-    delete:
-      summary: Delete the current session
-      description: Logs out the current user by invalidating their session token.
-      tags:
-        - Authentication
-      operationId: deleteCurrentSession
-      x-data-classification: Internal
-      security:
-        - OAuth2: []
-      responses:
-        '204':
-          description: The session was successfully invalidated.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-  /mcgw/v1/admin/api-keys:
-    get:
-      summary: List all internal API keys
-      description: Retrieves a list of all internal API keys, including their name, ID, and expiration.
-      tags:
-        - API Keys
-      operationId: listApiKeys
-      x-data-classification: Restricted (PII, PCI, PHI)
-      security:
-        - OAuth2: [admin:read]
-      parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
-      responses:
-        '200':
-          description: A paginated list of API keys.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                  - pagination
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ApiKey'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-    post:
-      summary: Create an internal API key
-      description: Creates a new internal API key with a specified name.
-      tags:
-        - API Keys
-      operationId: createApiKey
-      x-data-classification: Restricted (PII, PCI, PHI)
-      x-idempotent: true
-      security:
-        - OAuth2: [admin:write]
-      parameters:
-        - $ref: '#/components/headers/IdempotencyKey'
-      requestBody:
-        description: The name for the new API key.
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - key_name
-              properties:
-                key_name:
-                  type: string
-                  description: A unique, human-readable name for the API key.
-                  example: my-automation-key
-      responses:
-        '201':
-          description: API key created successfully. The response includes the generated token which is only returned on creation.
-          headers:
-            Location:
-              $ref: '#/components/headers/Location'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiKeyWithToken'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-  /mcgw/v1/admin/api-keys/{api_key_id}:
-    delete:
-      summary: Delete an internal API key
-      description: Permanently deletes an internal API key by its ID.
-      tags:
-        - API Keys
-      operationId: deleteApiKey
-      x-data-classification: Restricted (PII, PCI, PHI)
-      security:
-        - OAuth2: [admin:write]
-      parameters:
-        - $ref: '#/components/parameters/ApiKeyId'
-        - $ref: '#/components/headers/IfMatch'
-      responses:
-        '204':
-          description: The API key was deleted successfully.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '412':
-          $ref: '#/components/responses/PreconditionFailed'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-  /mcgw/v1/gateways:
+  /gateways:
     get:
       summary: List all gateways
       description: Retrieves a paginated list of all Multi-Cloud Gateway instances accessible to the user.
@@ -198,14 +25,15 @@ paths:
         - Gateways
       operationId: listGateways
       x-data-classification: Internal
-      security:
-        - OAuth2: [mcgw:read]
       parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/PaginationLimit'
+        - $ref: '#/components/parameters/PaginationOffset'
       responses:
         '200':
           description: A paginated list of gateways.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
@@ -234,15 +62,13 @@ paths:
       tags:
         - Gateways
       operationId: createGateway
-      x-data-classification: Internal
+      x-data-classification: Confidential
       x-operation-type: lro
       x-idempotent: true
-      security:
-        - OAuth2: [mcgw:write]
       parameters:
-        - $ref: '#/components/headers/IdempotencyKey'
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
-        description: The configuration for the new gateway.
+        description: The configuration for the new gateway instance.
         required: true
         content:
           application/json:
@@ -250,7 +76,7 @@ paths:
               $ref: '#/components/schemas/GatewayCreate'
       responses:
         '202':
-          description: The gateway creation request has been accepted for processing. Poll the URL in the Location header to check the status.
+          description: The gateway creation request has been accepted for processing. The status of the operation can be tracked via the URL in the Location header.
           headers:
             Location:
               $ref: '#/components/headers/Location'
@@ -262,30 +88,26 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /mcgw/v1/gateways/{gateway_id}:
+  /gateways/{gateway_id}:
     get:
       summary: Get a gateway by ID
-      description: Retrieves the details of a specific Multi-Cloud Gateway instance.
+      description: Retrieves the details of a specific Multi-Cloud Gateway instance by its unique identifier.
       tags:
         - Gateways
       operationId: getGateway
       x-data-classification: Internal
-      security:
-        - OAuth2: [mcgw:read]
       parameters:
         - $ref: '#/components/parameters/GatewayId'
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
-          description: The requested gateway resource.
+          description: The detailed representation of the gateway.
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
@@ -294,10 +116,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Gateway'
         '304':
-          description: Not Modified. The client's cached version is up-to-date.
-          headers:
-            ETag:
-              $ref: '#/components/headers/ETag'
+          $ref: '#/components/responses/NotModified'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -310,17 +129,16 @@ paths:
           $ref: '#/components/responses/InternalServerError'
     patch:
       summary: Update a gateway
-      description: Partially updates a Multi-Cloud Gateway instance, such as changing its tier. This may be an asynchronous operation.
+      description: Partially updates a gateway's properties, such as its name, description, or tier. This may be a long-running operation if the tier is changed.
       tags:
         - Gateways
-      operationId: patchGateway
-      x-data-classification: Internal
+      operationId: updateGateway
+      x-data-classification: Confidential
       x-operation-type: lro
-      security:
-        - OAuth2: [mcgw:write]
+      x-idempotent: true
       parameters:
         - $ref: '#/components/parameters/GatewayId'
-        - $ref: '#/components/headers/IfMatch'
+        - $ref: '#/components/parameters/IfMatch'
       requestBody:
         description: The fields to update on the gateway.
         required: true
@@ -330,7 +148,7 @@ paths:
               $ref: '#/components/schemas/GatewayUpdate'
       responses:
         '200':
-          description: The gateway was updated successfully and synchronously.
+          description: The gateway was updated successfully and synchronously (e.g., name change).
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
@@ -339,7 +157,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Gateway'
         '202':
-          description: The gateway update request has been accepted for processing. Poll the URL in the Location header to check the status.
+          description: The gateway update request has been accepted for asynchronous processing (e.g., tier change).
           headers:
             Location:
               $ref: '#/components/headers/Location'
@@ -365,20 +183,18 @@ paths:
           $ref: '#/components/responses/InternalServerError'
     delete:
       summary: Delete a gateway
-      description: Initiates the deletion of a Multi-Cloud Gateway instance. This is an asynchronous operation.
+      description: Initiates the deletion of a Multi-Cloud Gateway instance. This is a long-running operation.
       tags:
         - Gateways
       operationId: deleteGateway
-      x-data-classification: Internal
+      x-data-classification: Confidential
       x-operation-type: lro
-      security:
-        - OAuth2: [mcgw:write]
       parameters:
         - $ref: '#/components/parameters/GatewayId'
-        - $ref: '#/components/headers/IfMatch'
+        - $ref: '#/components/parameters/IfMatch'
       responses:
         '202':
-          description: The gateway deletion request has been accepted for processing. Poll the URL in the Location header to check the status.
+          description: The deletion request has been accepted. The status of the operation can be tracked via the URL in the Location header.
           headers:
             Location:
               $ref: '#/components/headers/Location'
@@ -398,23 +214,24 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /mcgw/v1/gateways/{gateway_id}/interfaces:
+  /gateways/{gateway_id}/interfaces:
     get:
-      summary: List all interfaces for a gateway
-      description: Retrieves a paginated list of all interfaces associated with a specific Multi-Cloud Gateway.
+      summary: List interfaces for a gateway
+      description: Retrieves a paginated list of all interfaces configured on a specific gateway.
       tags:
         - Interfaces
       operationId: listInterfaces
       x-data-classification: Internal
-      security:
-        - OAuth2: [mcgw:read]
       parameters:
         - $ref: '#/components/parameters/GatewayId'
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/PaginationLimit'
+        - $ref: '#/components/parameters/PaginationOffset'
       responses:
         '200':
           description: A paginated list of interfaces.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
@@ -441,19 +258,17 @@ paths:
           $ref: '#/components/responses/InternalServerError'
     post:
       summary: Create one or more interfaces
-      description: Creates one or more new interfaces on a specified Multi-Cloud Gateway. This is a batch operation.
+      description: Creates one or more new interfaces on a specified gateway in a single batch request.
       tags:
         - Interfaces
       operationId: createInterfaces
-      x-data-classification: Internal
+      x-data-classification: Confidential
       x-idempotent: true
-      security:
-        - OAuth2: [mcgw:write]
       parameters:
         - $ref: '#/components/parameters/GatewayId'
-        - $ref: '#/components/headers/IdempotencyKey'
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
-        description: A list of new interfaces to create.
+        description: A list of interface configurations to create.
         required: true
         content:
           application/json:
@@ -461,17 +276,14 @@ paths:
               type: array
               items:
                 $ref: '#/components/schemas/InterfaceCreate'
+              example:
+                - name: interface-to-aws
+                  description: Primary connection to AWS us-east-1
+                - name: interface-to-azure
+                  description: Secondary connection to Azure us-west-2
       responses:
-        '201':
-          description: All interfaces were created successfully.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Interface'
         '207':
-          description: The batch operation completed with mixed results (some interfaces created, some failed).
+          description: The batch request was processed, but with mixed results. The response body contains the status for each individual interface creation.
           content:
             application/json:
               schema:
@@ -484,31 +296,27 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /mcgw/v1/gateways/{gateway_id}/interfaces/{interface_id}:
+  /gateways/{gateway_id}/interfaces/{interface_id}:
     get:
       summary: Get an interface by ID
-      description: Retrieves the details of a specific interface on a Multi-Cloud Gateway.
+      description: Retrieves the details of a specific interface on a gateway.
       tags:
         - Interfaces
       operationId: getInterface
       x-data-classification: Internal
-      security:
-        - OAuth2: [mcgw:read]
       parameters:
         - $ref: '#/components/parameters/GatewayId'
         - $ref: '#/components/parameters/InterfaceId'
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
-          description: The requested interface resource.
+          description: The detailed representation of the interface.
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
@@ -517,10 +325,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Interface'
         '304':
-          description: Not Modified. The client's cached version is up-to-date.
-          headers:
-            ETag:
-              $ref: '#/components/headers/ETag'
+          $ref: '#/components/responses/NotModified'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -533,17 +338,16 @@ paths:
           $ref: '#/components/responses/InternalServerError'
     patch:
       summary: Update an interface
-      description: Partially updates an interface on a Multi-Cloud Gateway.
+      description: Partially updates an interface's properties, such as its name or description.
       tags:
         - Interfaces
-      operationId: patchInterface
-      x-data-classification: Internal
-      security:
-        - OAuth2: [mcgw:write]
+      operationId: updateInterface
+      x-data-classification: Confidential
+      x-idempotent: true
       parameters:
         - $ref: '#/components/parameters/GatewayId'
         - $ref: '#/components/parameters/InterfaceId'
-        - $ref: '#/components/headers/IfMatch'
+        - $ref: '#/components/parameters/IfMatch'
       requestBody:
         description: The fields to update on the interface.
         required: true
@@ -569,8 +373,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '422':
@@ -581,57 +383,54 @@ paths:
           $ref: '#/components/responses/InternalServerError'
     delete:
       summary: Delete an interface
-      description: Deletes an interface from a Multi-Cloud Gateway. This may be an asynchronous operation.
+      description: Deletes a specific interface from a gateway. This operation is synchronous.
       tags:
         - Interfaces
       operationId: deleteInterface
-      x-data-classification: Internal
-      x-operation-type: lro
-      security:
-        - OAuth2: [mcgw:write]
+      x-data-classification: Confidential
       parameters:
         - $ref: '#/components/parameters/GatewayId'
         - $ref: '#/components/parameters/InterfaceId'
-        - $ref: '#/components/headers/IfMatch'
+        - $ref: '#/components/parameters/IfMatch'
       responses:
-        '202':
-          description: The interface deletion request has been accepted for processing. Poll the URL in the Location header to check the status.
-          headers:
-            Location:
-              $ref: '#/components/headers/Location'
-            Retry-After:
-              $ref: '#/components/headers/RetryAfter'
         '204':
-          description: The interface was deleted successfully and synchronously.
+          description: The interface was deleted successfully.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /mcgw/v1/gateways/{gateway_id}/routes:
+  /gateways/{gateway_id}/routes:
     get:
-      summary: List all routes for a gateway
-      description: Retrieves a list of all BGP and static routes within the gateway's global VRF.
+      summary: List routes for a gateway
+      description: Retrieves a paginated list of BGP routes associated with a specific gateway instance.
       tags:
         - Routes
       operationId: listRoutes
       x-data-classification: Internal
-      security:
-        - OAuth2: [mcgw:read]
       parameters:
         - $ref: '#/components/parameters/GatewayId'
-        - $ref: '#/components/parameters/AddressFamily'
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/PaginationLimit'
+        - $ref: '#/components/parameters/PaginationOffset'
+        - name: address_family
+          in: query
+          description: Filter routes by address family.
+          required: false
+          schema:
+            type: string
+            enum:
+              - ipv4
+              - ipv6
+              - all
+            default: ipv4
+          example: ipv4
       responses:
         '200':
           description: A paginated list of routes.
@@ -659,16 +458,14 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  /mcgw/v1/operations/{operation_id}:
+  /operations/{operation_id}:
     get:
       summary: Get operation status
-      description: Retrieves the status of a long-running asynchronous operation.
+      description: Retrieves the current status of a long-running operation.
       tags:
         - Operations
       operationId: getOperation
       x-data-classification: Internal
-      security:
-        - OAuth2: [mcgw:read]
       parameters:
         - $ref: '#/components/parameters/OperationId'
         - $ref: '#/components/parameters/IfNoneMatch'
@@ -685,10 +482,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Operation'
         '304':
-          description: Not Modified. The operation status has not changed since the last request.
-          headers:
-            ETag:
-              $ref: '#/components/headers/ETag'
+          $ref: '#/components/responses/NotModified'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -701,18 +495,16 @@ paths:
           $ref: '#/components/responses/InternalServerError'
     delete:
       summary: Cancel an operation
-      description: Requests the cancellation of an in-progress asynchronous operation. Cancellation is best-effort.
+      description: Requests the cancellation of an in-progress long-running operation. Cancellation is best-effort.
       tags:
         - Operations
       operationId: cancelOperation
-      x-data-classification: Internal
-      security:
-        - OAuth2: [mcgw:write]
+      x-data-classification: Confidential
       parameters:
         - $ref: '#/components/parameters/OperationId'
       responses:
         '202':
-          description: The cancellation request has been accepted. Poll the operation to confirm its final state.
+          description: The cancellation request has been accepted. Poll the operation resource to confirm its final state.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -720,37 +512,152 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: The operation is already in a terminal state and cannot be cancelled.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalServerError'
 components:
   schemas:
-    Gateway:
+    # Base Schemas
+    ResourceId:
+      type: string
+      format: uuid
+      description: Opaque, globally unique identifier for a resource, generated by the server.
+      pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+      example: 279fc665-d04d-4dba-bcad-17c865489dfa
+    ResourceMetadata:
       type: object
+      description: Standard metadata for a resource.
+      required:
+        - id
+        - created_at
+        - last_updated_at
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: The UTC timestamp when the resource was created.
+        last_updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: The UTC timestamp when the resource was last modified.
+    State:
+      type: string
+      readOnly: true
+      description: The current provisioning or operational state of the resource.
+      enum:
+        - Active
+        - Provisioning
+        - Updating
+        - Deleting
+        - Disabled
+        - Failed
+      example: Active
+    Pagination:
+      type: object
+      description: Metadata for a paginated collection of resources.
+      required:
+        - limit
+        - offset
+        - total
+      properties:
+        limit:
+          type: integer
+          description: The maximum number of items returned on the page.
+          example: 20
+        offset:
+          type: integer
+          description: The starting position of the page in the collection.
+          example: 0
+        total:
+          type: integer
+          description: The total number of items available in the collection.
+          example: 245
+    Money:
+      type: object
+      description: Represents a monetary amount in a specific currency.
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: integer
+          description: Monetary amount in the minor units of the currency (e.g., cents for USD).
+          example: 75000
+        currency:
+          type: string
+          description: ISO 4217 currency code.
+          pattern: '^[A-Z]{3}$'
+          example: USD
+    BillingInfo:
+      type: object
+      readOnly: true
+      description: Billing details associated with a resource.
+      properties:
+        status:
+          type: string
+          description: The current billing status of the resource.
+          example: Active
+        start_at:
+          type: string
+          format: date-time
+          description: The UTC timestamp when billing for the resource started.
+        term:
+          type: string
+          description: The billing term for the resource.
+          example: Monthly
+        mrc:
+          $ref: '#/components/schemas/Money'
+    # Gateway Schemas
+    Gateway:
       description: A Multi-Cloud Gateway instance.
+      type: object
       allOf:
         - $ref: '#/components/schemas/ResourceMetadata'
-        - $ref: '#/components/schemas/CommonMetadata'
-        - $ref: '#/components/schemas/GatewayCreate'
-        - type: object
-          properties:
-            state:
-              type: string
-              description: The current provisioning state of the gateway.
-              readOnly: true
-              enum:
-                - Active
-                - Disabled
-                - Deleting
-                - Provisioning
-                - Updating
-                - Resetting
-              example: Active
+        - $ref: '#/components/schemas/GatewayProperties'
+    GatewayProperties:
+      type: object
+      properties:
+        name:
+          type: string
+          description: A user-friendly name for the gateway.
+          example: my-primary-gateway
+        description:
+          type: string
+          description: A detailed description of the gateway's purpose.
+          example: Gateway for production cloud environments
+        mcgw_tier:
+          type: string
+          description: The throughput tier of the gateway instance.
+          enum:
+            - 10G
+            - 50G
+            - Unlimited
+          example: 10G
+        asn:
+          type: integer
+          description: The Autonomous System Number (ASN) for the gateway.
+          enum:
+            - 1
+            - 3549
+          default: 1
+          example: 1
+        state:
+          $ref: '#/components/schemas/State'
+        billing:
+          $ref: '#/components/schemas/BillingInfo'
     GatewayCreate:
       type: object
-      description: Properties for creating a new Multi-Cloud Gateway.
+      description: The configuration for creating a new gateway.
       required:
         - mcgw_tier
       properties:
@@ -761,99 +668,108 @@ components:
         description:
           type: string
           description: A detailed description of the gateway's purpose.
-          example: Gateway for connecting AWS and Azure environments.
+          example: Gateway for production cloud environments
+        mcgw_tier:
+          type: string
+          description: The throughput tier of the gateway instance.
+          enum:
+            - 10G
+            - 50G
+            - Unlimited
+          example: 10G
         asn:
           type: integer
-          description: The Autonomous System Number for the gateway.
-          enum: [1, 3549]
+          description: The Autonomous System Number (ASN) for the gateway.
+          enum:
+            - 1
+            - 3549
           default: 1
           example: 1
-        mcgw_tier:
-          $ref: '#/components/schemas/GatewayTier'
     GatewayUpdate:
       type: object
-      description: Properties for updating an existing Multi-Cloud Gateway.
+      description: The properties that can be updated on a gateway.
       properties:
         name:
           type: string
-          description: A user-friendly name for the gateway.
-          example: my-primary-gateway-renamed
+          description: A new user-friendly name for the gateway.
+          example: my-renamed-gateway
         description:
           type: string
-          description: A detailed description of the gateway's purpose.
-          example: Updated gateway description.
+          description: An updated description for the gateway.
+          example: Updated gateway description
         mcgw_tier:
-          $ref: '#/components/schemas/GatewayTier'
-    GatewayTier:
-      type: string
-      description: The throughput tier of the gateway instance, which determines the total aggregate bandwidth.
-      enum:
-        - 10G
-        - 50G
-        - Unlimited
-      example: 10G
+          type: string
+          description: The new throughput tier for the gateway instance.
+          enum:
+            - 10G
+            - 50G
+            - Unlimited
+          example: 50G
+    # Interface Schemas
     Interface:
+      description: An interface on a Multi-Cloud Gateway instance.
       type: object
-      description: A virtual interface on a Multi-Cloud Gateway.
       allOf:
         - $ref: '#/components/schemas/ResourceMetadata'
-        - $ref: '#/components/schemas/CommonMetadata'
-        - $ref: '#/components/schemas/InterfaceCreate'
-        - type: object
-          properties:
-            bandwidth_mbps:
-              $ref: '#/components/schemas/BandwidthMbps'
-            state:
-              type: string
-              description: The current provisioning state of the interface.
-              readOnly: true
-              enum:
-                - Active
-                - Disabled
-                - Deleting
-                - Provisioning
-                - Updating
-              example: Active
+        - $ref: '#/components/schemas/InterfaceProperties'
+    InterfaceProperties:
+      type: object
+      properties:
+        name:
+          type: string
+          description: A user-friendly name for the interface.
+          example: interface-to-aws
+        description:
+          type: string
+          description: A detailed description of the interface's purpose.
+          example: Primary connection to AWS us-east-1
+        bandwidth_mbps:
+          type: integer
+          format: int64
+          description: The bandwidth of the interface in Megabits per second (Mbps). This value is typically inherited from an attached Fabric Connection but can be modified.
+          example: 1000
+        state:
+          $ref: '#/components/schemas/State'
+        billing:
+          $ref: '#/components/schemas/BillingInfo'
     InterfaceCreate:
       type: object
-      description: Properties for creating a new interface.
+      description: The configuration for creating a new interface.
       properties:
         name:
           type: string
           description: A user-friendly name for the interface.
-          example: interface-to-aws-use1
+          example: interface-to-aws
         description:
           type: string
           description: A detailed description of the interface's purpose.
-          example: Primary connection to AWS US-East-1.
+          example: Primary connection to AWS us-east-1
     InterfaceUpdate:
       type: object
-      description: Properties for updating an existing interface.
+      description: The properties that can be updated on an interface.
       properties:
         name:
           type: string
-          description: A user-friendly name for the interface.
-          example: interface-to-aws-use1-updated
+          description: A new user-friendly name for the interface.
+          example: aws-primary-interface
         description:
           type: string
-          description: A detailed description of the interface's purpose.
-          example: Updated description for primary AWS connection.
+          description: An updated description for the interface.
+          example: Updated description for AWS connection
         bandwidth_mbps:
-          $ref: '#/components/schemas/BandwidthMbps'
+          type: integer
+          format: int64
+          description: The new bandwidth of the interface in Megabits per second (Mbps).
+          example: 2000
+    # Route Schema
     Route:
       type: object
-      description: A BGP or static route within the gateway's routing table.
+      description: A BGP route learned by the gateway.
       properties:
         prefix:
           type: string
-          format: ipv4
           description: The destination network prefix.
-          example: 192.168.1.0
-        mask:
-          type: string
-          format: ipv4
-          description: The subnet mask for the destination network.
-          example: 255.255.255.0
+          example: 192.168.100.0/24
         next_hop_ip_address:
           type: string
           format: ipv4
@@ -861,111 +777,131 @@ components:
           example: 10.0.0.1
         as_path:
           type: string
-          description: The BGP Autonomous System path for the route.
-          example: "65001 65002"
+          description: The Autonomous System (AS) path for the route.
+          example: '65001 65002'
         community_tags:
           type: array
           items:
             type: string
           description: A list of BGP community tags associated with the route.
-          example: ["65001:100", "65001:200"]
+          example:
+            - '65001:100'
         local_preference:
           type: integer
-          description: The BGP local preference value for the route.
+          description: The local preference value for the route.
           example: 100
-    ApiKey:
+    # Batch Response Schema
+    BatchMultiStatusResponse:
       type: object
-      description: An API key for authentication.
-      properties:
-        key_id:
-          type: string
-          description: The unique identifier for the API key.
-          readOnly: true
-          example: key_abc123
-        key_name:
-          type: string
-          description: A unique, human-readable name for the API key.
-          example: my-automation-key
-        token_expiration:
-          type: string
-          format: date-time
-          description: The UTC timestamp when the token associated with this key will expire.
-          readOnly: true
-          example: '2025-12-31T23:59:59Z'
-    ApiKeyWithToken:
-      allOf:
-        - $ref: '#/components/schemas/ApiKey'
-        - type: object
-          properties:
-            token:
-              type: string
-              description: The secret token for the API key. This is only returned upon creation.
-              readOnly: true
-              example: 'lmn.secret.a1b2c3d4e5f6'
-    Credentials:
-      type: object
-      description: User credentials for authentication.
+      description: The response for a batch operation with mixed success and failure outcomes.
       required:
-        - username
-        - password
+        - summary
       properties:
-        username:
-          type: string
-          example: user@example.com
-        password:
-          type: string
-          format: password
-          example: 'Str0ngP@ssw0rd!'
-    Session:
+        summary:
+          $ref: '#/components/schemas/BatchSummary'
+        successes:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchSuccess'
+        failures:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchFailure'
+    BatchSummary:
       type: object
-      description: An authenticated user session.
+      description: A summary of the results of a batch operation.
+      required:
+        - total
+        - succeeded
+        - failed
       properties:
-        session_token:
+        total:
+          type: integer
+          example: 2
+        succeeded:
+          type: integer
+          example: 1
+        failed:
+          type: integer
+          example: 1
+    BatchSuccess:
+      type: object
+      description: Details of a successfully processed item in a batch request.
+      properties:
+        index:
+          type: integer
+          description: The zero-based index of the item in the original request array.
+          example: 0
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        status:
+          type: integer
+          description: The HTTP status code for this item's outcome.
+          example: 201
+        resource:
+          type: object
+          description: A representation of the created resource.
+    BatchFailure:
+      type: object
+      description: Details of a failed item in a batch request.
+      properties:
+        index:
+          type: integer
+          description: The zero-based index of the item in the original request array.
+          example: 1
+        status:
+          type: integer
+          description: The HTTP status code for this item's outcome.
+          example: 422
+        code:
           type: string
-          description: The token representing the authenticated session.
-          example: 'lmn.session.a1b2c3d4e5f6'
-        token_expiration:
+          description: A stable, machine-readable error code.
+          example: validation.duplicate_name
+        message:
           type: string
-          format: date-time
-          description: The UTC timestamp when the session token will expire.
-          example: '2025-12-31T23:59:59Z'
+          description: A human-readable explanation of the error.
+          example: An interface with this name already exists.
+    # LRO and Error Schemas
     Operation:
       type: object
-      description: The status of a long-running asynchronous operation.
+      description: The status of a long-running operation.
       required:
         - operation_id
         - status
         - started_at
       properties:
         operation_id:
-          type: string
-          format: uuid
-          description: Unique identifier for the operation.
-          example: 279fc665-d04d-4dba-bcad-17c865489dfa
+          $ref: '#/components/schemas/ResourceId'
         status:
           type: string
-          description: The current state of the operation.
           enum: [PENDING, RUNNING, SUCCEEDED, FAILED, CANCELLED]
           example: RUNNING
         percent:
           type: integer
           format: int32
-          minimum: 0
-          maximum: 100
           description: Estimated progress percentage (0-100).
           example: 50
         started_at:
           type: string
           format: date-time
           description: UTC timestamp when the operation was accepted.
-          readOnly: true
-          example: '2025-10-29T16:00:00Z'
         completed_at:
           type: string
           format: date-time
           description: UTC timestamp when the operation entered a terminal state.
-          readOnly: true
-          example: '2025-10-29T16:05:00Z'
+        resource:
+          type: object
+          description: A link to the created or modified resource, present on success.
+          properties:
+            id:
+              $ref: '#/components/schemas/ResourceId'
+            href:
+              type: string
+              format: uri
+              description: The full URI to GET the resource.
+              example: /gateways/279fc665-d04d-4dba-bcad-17c865489dfa
+        error:
+          $ref: '#/components/schemas/Problem'
         metadata:
           type: object
           description: Service-specific metadata providing real-time status information.
@@ -973,30 +909,14 @@ components:
             message:
               type: string
               description: A human-readable status message.
-              example: 'Step 2 of 4: Configuring interfaces...'
+              example: 'Step 2 of 4: Configuring routing policies...'
             step:
               type: string
               description: A machine-readable code for the current sub-state.
-              example: 'CONFIGURING_INTERFACES'
-          additionalProperties: true
-        resource:
-          type: object
-          description: A link to the resource that was created or modified, present on SUCCEEDED.
-          properties:
-            id:
-              type: string
-              description: The ID of the created/modified resource.
-              example: gw-abc123
-            href:
-              type: string
-              format: uri
-              description: The full URI to GET the resource.
-              example: /mcgw/v1/gateways/gw-abc123
-        error:
-          $ref: '#/components/schemas/Problem'
+              example: 'CONFIGURING_POLICIES'
     Problem:
       type: object
-      description: A Problem Details object (RFC 9457) for describing errors.
+      description: A problem details object compliant with RFC 9457 (LPDP-Mini profile).
       required:
         - title
         - errors
@@ -1009,10 +929,10 @@ components:
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/LpdpError'
-    LpdpError:
+            $ref: '#/components/schemas/ErrorItem'
+    ErrorItem:
       type: object
-      description: A specific error detail.
+      description: A single error detail.
       required:
         - code
         - message
@@ -1020,160 +940,56 @@ components:
         code:
           type: string
           description: A stable, machine-readable error code.
-          example: VALIDATION_ERROR
+          example: validation.required_field_missing
         message:
           type: string
-          description: A human-readable explanation specific to this occurrence of the problem.
+          description: A human-readable explanation of the specific error.
           example: The 'mcgw_tier' field is required.
-        meta:
-          type: object
-          description: Optional, unregulated extension for machine-readable context.
-          additionalProperties: true
-    BatchMultiStatusResponse:
-      type: object
-      description: A response for a batch operation with mixed success and failure outcomes.
-      required:
-        - summary
-      properties:
-        summary:
-          type: object
-          required: [total, succeeded, failed]
-          properties:
-            total:
-              type: integer
-              description: Total number of items in the batch request.
-              example: 5
-            succeeded:
-              type: integer
-              description: Number of items that were processed successfully.
-              example: 3
-            failed:
-              type: integer
-              description: Number of items that failed.
-              example: 2
-        results:
-          type: array
-          description: An array detailing the outcome for each item in the batch.
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-                description: The ID of the resource if created, or a client-provided key.
-                example: if-abc123
-              status:
-                type: integer
-                description: The HTTP status code for this specific item's outcome.
-                example: 201
-              message:
-                type: string
-                description: A message describing the outcome for this item.
-                example: Created
-    ResourceId:
-      type: string
-      format: uuid
-      description: Opaque, globally unique identifier for a resource. Generated by the API provider.
-      pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
-      example: 279fc665-d04d-4dba-bcad-17c865489dfa
-    ResourceMetadata:
-      type: object
-      description: Standard metadata for a resource instance.
-      required:
-        - id
-        - created_at
-        - last_updated_at
-      properties:
-        id:
-          $ref: '#/components/schemas/ResourceId'
-        created_at:
-          type: string
-          format: date-time
-          description: Creation timestamp in UTC.
-          readOnly: true
-          example: '2025-01-01T12:00:00Z'
-        last_updated_at:
-          type: string
-          format: date-time
-          description: Last update timestamp in UTC.
-          readOnly: true
-          example: '2025-01-10T15:30:00Z'
-    CommonMetadata:
-      type: object
-      description: Common read-only metadata fields for resources.
-      properties:
-        customer_uid:
-          type: string
-          readOnly: true
-          example: cust-abc123
-        user_uid:
-          type: string
-          readOnly: true
-          example: user-xyz789
-        user_provisioned:
-          type: string
-          readOnly: true
-          example: 'system-automation'
-        user_modified:
-          type: string
-          readOnly: true
-          example: 'jane.doe@example.com'
-    Pagination:
-      type: object
-      description: Metadata for a paginated collection of resources.
-      required:
-        - limit
-        - offset
-        - total
-      properties:
-        limit:
-          type: integer
-          description: The maximum number of items returned.
-          example: 20
-        offset:
-          type: integer
-          description: The starting position of the query.
-          example: 0
-        total:
-          type: integer
-          description: The total number of available items.
-          example: 245
-    BandwidthMbps:
-      type: integer
-      format: int64
-      minimum: 0
-      description: Bandwidth capacity measured in Megabits per second (Mbps). 1 Gbps = 1000.
-      example: 1000
   parameters:
     GatewayId:
       name: gateway_id
       in: path
       required: true
-      description: The unique identifier for the gateway.
+      description: The unique identifier of the gateway.
       schema:
         $ref: '#/components/schemas/ResourceId'
     InterfaceId:
       name: interface_id
       in: path
       required: true
-      description: The unique identifier for the interface.
+      description: The unique identifier of the interface.
       schema:
         $ref: '#/components/schemas/ResourceId'
-    ApiKeyId:
-      name: api_key_id
-      in: path
-      required: true
-      description: The unique identifier for the API key.
-      schema:
-        type: string
-        example: key_abc123
     OperationId:
       name: operation_id
       in: path
       required: true
-      description: The unique identifier for the asynchronous operation.
+      description: The unique identifier of the long-running operation.
       schema:
         $ref: '#/components/schemas/ResourceId'
-    Limit:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: A unique key to ensure safe retries of POST requests.
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: The ETag of the resource to be updated, used for optimistic concurrency control.
+      schema:
+        type: string
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: The ETag of a cached resource. If it matches the current ETag, a 304 Not Modified will be returned.
+      schema:
+        type: string
+    PaginationLimit:
       name: limit
       in: query
       description: The maximum number of items to return per page.
@@ -1182,52 +998,24 @@ components:
         default: 20
         minimum: 1
         maximum: 100
-    Offset:
+      example: 20
+    PaginationOffset:
       name: offset
       in: query
-      description: The starting position of the query for pagination.
+      description: The starting position of the page in the collection.
       schema:
         type: integer
         default: 0
         minimum: 0
-    AddressFamily:
-      name: address_family
-      in: query
-      description: Filter routes by address family.
-      schema:
-        type: string
-        enum: [ipv4, ipv6, all]
-        default: ipv4
-    IfNoneMatch:
-      name: if-none-match
-      in: header
-      description: The ETag of a cached resource, used for conditional GET requests.
-      schema:
-        type: string
+      example: 0
   headers:
-    IdempotencyKey:
-      name: idempotency-key
-      in: header
-      required: true
-      description: A unique key to prevent duplicate processing of the same request.
-      schema:
-        type: string
-        format: uuid
     ETag:
-      description: The ETag for this version of the resource, used for caching and concurrency control.
+      description: The ETag for the current version of the resource, used for caching and concurrency control.
       schema:
         type: string
-        example: '"v2-a1b2c3d4"'
-    IfMatch:
-      name: if-match
-      in: header
-      required: true
-      description: The ETag of the resource to update, used for optimistic concurrency control.
-      schema:
-        type: string
-        example: '"v1-a1b2c3d4"'
+        example: '"v2-6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"'
     Location:
-      description: The canonical URI of a newly created resource or an operation status resource.
+      description: The canonical URI of a newly created or processing resource.
       schema:
         type: string
         format: uri
@@ -1238,49 +1026,49 @@ components:
         example: 10
   responses:
     BadRequest:
-      description: '400 Bad Request: The server cannot or will not process the request due to something that is perceived to be a client error (e.g., malformed request syntax).'
+      description: The request was malformed or contained invalid syntax.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     Unauthorized:
-      description: '401 Unauthorized: The request has not been applied because it lacks valid authentication credentials for the target resource.'
+      description: The request requires authentication, and the client has not provided valid credentials.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     Forbidden:
-      description: '403 Forbidden: The server understood the request but refuses to authorize it. The user may be authenticated but lacks permissions.'
+      description: The client is authenticated but does not have permission to perform the requested action.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     NotFound:
-      description: '404 Not Found: The server has not found anything matching the Request-URI.'
+      description: The requested resource could not be found.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     Conflict:
-      description: '409 Conflict: The request could not be completed due to a conflict with the current state of the target resource (e.g., idempotency key mismatch, resource locked).'
+      description: The request could not be completed due to a conflict with the current state of the target resource, such as a lock.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     PreconditionFailed:
-      description: '412 Precondition Failed: The server does not meet one of the preconditions that the requester put on the request header fields (e.g., If-Match ETag mismatch).'
+      description: The server rejected the request because the If-Match header did not match the resource's current ETag.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     UnprocessableEntity:
-      description: '422 Unprocessable Entity: The server understands the content type of the request entity, and the syntax of the request entity is correct, but it was unable to process the contained instructions.'
+      description: The request was well-formed but could not be processed due to semantic errors (e.g., validation failure).
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
     TooManyRequests:
-      description: '429 Too Many Requests: The user has sent too many requests in a given amount of time ("rate limiting").'
+      description: The client has sent too many requests in a given amount of time ("rate limiting").
       headers:
         Retry-After:
           $ref: '#/components/headers/RetryAfter'
@@ -1289,19 +1077,25 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
     InternalServerError:
-      description: '500 Internal Server Error: The server encountered an unexpected condition that prevented it from fulfilling the request.'
+      description: The server encountered an unexpected condition that prevented it from fulfilling the request.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+    NotModified:
+      description: The resource has not been modified since the version specified by the If-None-Match header. The response body is empty.
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
   securitySchemes:
     OAuth2:
       type: oauth2
+      description: OAuth2 authentication using a bearer token.
       flows:
         clientCredentials:
-          tokenUrl: https://api.lumen.com/oauth/token
+          tokenUrl: https://auth.lumen.com/oauth/token
           scopes:
-            mcgw:read: Allows reading MCGW resources.
-            mcgw:write: Allows creating, updating, and deleting MCGW resources.
-            admin:read: Allows reading administrative resources like API keys.
-            admin:write: Allows managing administrative resources like API keys.
+            mcgw:read: Allows reading gateway resources.
+            mcgw:write: Allows creating and modifying gateway resources.
+security:
+  - OAuth2: []

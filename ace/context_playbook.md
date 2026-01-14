@@ -98,3 +98,21 @@
 - Ensure the `name` property inside a referenced path parameter component exactly matches the `snake_case` variable in the path string.
 - Name reusable header parameter components to match the standard HTTP header format (e.g., `If-None-Match`, not `IfNoneMatch`).
 - Place the `description` field as the first property within a response object to improve readability.
+- Suffix property names for bandwidth measurements with `_mbps`.
+- Implement standard reusable schemas with all their defined fields, including optional ones, to ensure completeness.
+- Provide a top-level `example` block for all complex object schemas.
+- Use `limit` and `offset` as the standard query parameter names for pagination.
+- Define all response body schemas as reusable components and refer to them using `$ref`.
+- Do not use a top-level array as a request body; wrap the array in a JSON object.
+- Use a consistent response schema for all success outcomes of a batch operation.
+- Position descriptive fields like `summary` and `tags` at the top of an operation definition.
+- Use the Long-Running Operation (LRO) pattern for any operation that cannot reliably complete within 2-3 seconds.
+- Provide an `example` value for all parameters.
+- Ensure resource identifier names are consistent between URI path parameters and their corresponding fields in the resource model.
+- Place schema metadata keywords like `description` as siblings to `properties`, not as children within it.
+- Ensure schemas used for PATCH operations include all user-modifiable fields of the resource.
+- Enhance the description of the `If-None-Match` parameter to explicitly state that clients SHOULD send it on subsequent GET requests for a resource.
+- Prepend all API paths with a product or domain namespace (e.g., /mcgw).
+- Place descriptive fields like `summary` and `description` at the beginning of an object to improve readability.
+- Include a `total` field in the pagination metadata object to indicate the total number of available records.
+- Position the `example` keyword as a sibling to other schema properties like `type` and `description`, not as a child of another property.
