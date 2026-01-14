@@ -30,12 +30,37 @@ class TerraformGeneratorPlugin:
 
 # --- 2. The Team Runs the Engine ---
 if __name__ == "__main__":
+    import os
+    import traceback
+    
     # The Team doesn't write the loop logic. They just use the Engine.
     plugin = TerraformGeneratorPlugin()
     
-    engine = ACELoop(agent_config={'epochs': 3}, plugin=plugin)
+    engine = ACELoop(agent_config={'epochs': 6}, plugin=plugin)
     
-    final_code = engine.run(input_data="docs/arch_diagram.png")
+    output_file = "generated_terraform.tf"
+    playbook_file = "context_playbook.md"
     
-    print("\nFinal Terraform Code:")
-    print(final_code)
+    print("Starting ACE Platform Engine...")
+    try:
+        final_code, final_playbook = engine.run(input_data="docs/arch_diagram.png")
+        
+        # Save outputs
+        with open(output_file, "w") as f:
+            f.write(final_code)
+        print(f"\nFinal Terraform Code saved to {output_file}")
+        
+        with open(playbook_file, "w") as f:
+            f.write(final_playbook)
+        print(f"Final Context Playbook saved to {playbook_file}")
+        
+        # Final Summary
+        final_rules = len([l for l in final_playbook.split('\n') if l.strip().startswith('-')])
+        print(f"\n=== FINAL SUMMARY ===")
+        print(f"Total Rules Learned: {final_rules}")
+        print(f"Run Complete.")
+        
+    except Exception as e:
+        print("\nFatal Error:")
+        traceback.print_exc()
+

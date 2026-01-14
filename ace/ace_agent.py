@@ -454,7 +454,7 @@ Instructions:
 
         return "\n".join(updated_playbook_items)
 
-    def run(self, product_spec_path, style_guide_path, epochs=3):
+    def run(self, product_spec_path, style_guide_path, epochs=6):
         # 1. Build Knowledge Base (RAG)
         self.build_knowledge_base(product_spec_path, style_guide_path)
 

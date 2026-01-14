@@ -20,15 +20,26 @@ class OpenAPIGeneratorPlugin:
         vertexai.init(project=PROJECT_ID, location=LOCATION)
         if not self.mock:
             self.model = GenerativeModel(model_name)
+            # Safety Settings to prevent blocking
+            self.safety_settings = [
+                SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
+                SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+                SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+                SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+            ]
     
     def _call_llm(self, prompt):
         if self.mock: return "MOCK_RESPONSE"
         try:
+            import time
+            start_t = time.time()
             # Enforce Deterministic Output
             response = self.model.generate_content(
                 prompt,
+                safety_settings=self.safety_settings,
                 generation_config={"temperature": 0}
             )
+            print(f"   Debug: LLM Response received in {round(time.time() - start_t, 2)}s")
             return response.text
         except Exception as e:
             print(f"LLM Error: {e}")
@@ -41,6 +52,11 @@ class OpenAPIGeneratorPlugin:
         """
         print(f"Plugin: Ingesting {source_path}...")
         vector_store = GoogleVectorStore(project_id=PROJECT_ID, location=LOCATION)
+        
+        # Check for cached vector store
+        if vector_store.load_local():
+            print("Skipping ingestion (loaded from cache).")
+            return vector_store
         
         chunker = PDFChunker()
         chunks = chunker.process_file(source_path)
