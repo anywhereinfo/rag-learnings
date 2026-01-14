@@ -240,7 +240,7 @@ Instructions:
                 filter_metadata={'type': 'product_spec'},
                 rerank=True
             )
-            )
+
             
             # "Bell Curve" Reordering (Lost in the Middle optimization)
             # Places best chunks at Start and End of context window

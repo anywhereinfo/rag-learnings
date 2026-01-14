@@ -222,7 +222,7 @@ openapi: 3.0.0
                 rerank=True
             )
             
-            )
+
             
             # "Bell Curve" Reordering (Lost in the Middle optimization)
             reordered = [None] * len(results)
