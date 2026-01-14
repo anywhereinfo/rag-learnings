@@ -110,7 +110,8 @@ Instructions:
 2. Apply the Style Guide Rules and Context Playbook guidelines strictly.
 3. Be EXHAUSTIVE. Include all schemas, paths, and error responses found in the text.
 4. Use the gathered context to infer parameter types and descriptions.
-5. Strategic Scoping: IGNORE shared/common services (Auth, Key Management, Onboarding) unless explicitly domain-specific. Focus on the core value proposition.
+5. **STRATEGIC SCOPING**: Do NOT generate endpoints for shared enterprise services (Authentication, User Login, Sessions, API Keys, Tenant Management). These are handled by external platform services. Focus ONLY on the CORE domain value of this specific product (e.g., Gateways, Interfaces, Routes).
+6. Output begins here:
 
 Begin OAS:
 openapi: 3.0.0

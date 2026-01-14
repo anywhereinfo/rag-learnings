@@ -156,7 +156,8 @@ Instructions:
 1. Synthesize the retrieved product information into a cohesive OAS.
 2. Apply the Style Guide Rules and Context Playbook guidelines strictly.
 3. If information is missing, use standard industry placeholders (e.g., "description: To be defined").
-4. Output ONLY the valid YAML content.
+4. **STRATEGIC SCOPING**: Do NOT generate endpoints for shared enterprise services (Authentication, User Login, Sessions, API Keys, Tenant Management). These are handled by external platform services. Focus ONLY on the CORE domain value of this specific product.
+5. Output ONLY the valid YAML content.
 """
         return self._clean_output(self._call_llm(prompt)), location_map
 
@@ -505,7 +506,7 @@ Instructions:
             print(f"   [Epoch {epoch} Stats]: Critique Size={critique_len} chars | Playbook Rules={playbook_rules_count}")
             print("Context Updated.")
 
-        return final_oas, context_playbook
+        return final_oas, context_playbook, previous_critique_len
 
     def reflect(self, c): return self.reflector(c)
 
@@ -526,7 +527,7 @@ if __name__ == "__main__":
     
     print("Starting ACE Agent...")
     try:
-        final_yaml, final_playbook = agent.run(product_spec_file, style_guide_file, epochs=3)
+        final_yaml, final_playbook, previous_critique_len = agent.run(product_spec_file, style_guide_file, epochs=3)
         
         with open(output_file, "w") as f:
             f.write(final_yaml)
