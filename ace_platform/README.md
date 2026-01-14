@@ -9,7 +9,7 @@ The platform consists of two main layers:
 ### 1. The Engine (`/engine`)
 The reusable core that handles:
 *   **The Loop**: Managing Epochs and Convergence.
-*   **Memory**: Vector Store interactions (supporting Hybrid Search & Cross-Encoder Reranking) and Context Playbook management.
+*   **Memory**: Vector Store interactions (supporting Hybrid Search & Cross-Encoder Reranking) and **Persistent Context Playbook** (long-term learning).
 *   **LLM Orchestration**: Centralized client for AI models.
 
 ### 2. Plugins (`/plugins`)

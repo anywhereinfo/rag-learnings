@@ -62,6 +62,7 @@ The Agent maintains a `context_playbook`—a mutable list of guidelines that evo
 *   **Initial State**: Standard REST/YAML rules.
 *   **Evolution**: After every epoch, the **Curator** analyzes the **Reflector's** critique and adds new rules to the playbook (e.g., "- Always return 404 for GET /id").
 *   **Deduplication**: New rules are embedding-matched against existing ones to prevent bloat.
+*   **Persistence**: The playbook is saved to `context_playbook.md`. On subsequent runs, the Agent loads this file, meaning it **never forgets a lesson** and improves permanently over time.
 
 ### C. The Epoch: A Self-Improvement Cycle
 An "Epoch" represents one full pass of the Agent trying to build the perfect spec. We employ a **Quantitative Convergence** strategy:

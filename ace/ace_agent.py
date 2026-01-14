@@ -440,7 +440,12 @@ Instructions:
         # 1. Build Knowledge Base (RAG)
         self.build_knowledge_base(product_spec_path, style_guide_path)
 
-        context_playbook = "- Follow standard RESTful practices.\n- Ensure valid YAML output."
+        if os.path.exists("ace/context_playbook.md"):
+            with open("ace/context_playbook.md", "r") as f:
+                context_playbook = f.read()
+            print("Loaded existing Context Playbook from disk.")
+        else:
+            context_playbook = "- Follow standard RESTful practices.\n- Ensure valid YAML output."
         final_oas = ""
         previous_critique_len = 0
 

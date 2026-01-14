@@ -63,6 +63,12 @@ class OpenAPIGeneratorPlugin:
         return vector_store
 
     def initial_playbook(self):
+        playbook_path = "context_playbook.md"
+        if os.path.exists(playbook_path):
+             print(f"Plugin: Loading existing Context Playbook from {playbook_path}")
+             with open(playbook_path, "r") as f:
+                 return f.read()
+
         return """
 # Context Playbook
 - **Style Guide**: Apply all style guidelines strictly.
