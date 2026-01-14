@@ -240,7 +240,24 @@ Instructions:
                 filter_metadata={'type': 'product_spec'},
                 rerank=True
             )
-            for r in results:
+            )
+            
+            # "Bell Curve" Reordering (Lost in the Middle optimization)
+            # Places best chunks at Start and End of context window
+            # Input (Sorted): [0(Best), 1, 2, 3, 4(Worst)]
+            # Output: [0, 2, 4, 3, 1]
+            reordered = [None] * len(results)
+            left, right = 0, len(results) - 1
+            for i, item in enumerate(results):
+                if i % 2 == 0:
+                    reordered[left] = item
+                    left += 1
+                else:
+                    reordered[right] = item
+                    right -= 1
+            
+            for r in reordered:
+                if r is None: continue # Safety check
                 # Deduplicate by simple string check
                 if r['text'] not in retrieved_context:
                         # Extract pages

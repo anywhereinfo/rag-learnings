@@ -8,7 +8,7 @@ The `Generate -> Reflect -> Curate` loop is a universal pattern for complex cogn
 ### `class ACEEngine`
 *   **Responsibilities**:
     *   Managing the Epoch Loop.
-    *   Handling Vector Store interactions (Memory).
+    *   Handling Vector Store interactions (Memory) with Advanced Retrieval (Hybrid Search, Reranking, Bell-Curve Reordering).
     *   Managing the `Context Playbook` (Long-term learning).
     *   Orchestrating LLM calls (Rate limits, Retries, Temperature).
 *   **Agnosticism**: It knows nothing about "APIs" or "Swagger". It only knows "Context", "Artifacts", and "Critiques".

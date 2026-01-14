@@ -222,7 +222,21 @@ openapi: 3.0.0
                 rerank=True
             )
             
-            for r in results:
+            )
+            
+            # "Bell Curve" Reordering (Lost in the Middle optimization)
+            reordered = [None] * len(results)
+            left, right = 0, len(results) - 1
+            for i, item in enumerate(results):
+                if i % 2 == 0:
+                    reordered[left] = item
+                    left += 1
+                else:
+                    reordered[right] = item
+                    right -= 1
+            
+            for r in reordered:
+                if r is None: continue
                 full_context += f"--- Context for {feat} ---\n{r['text']}\n"
         return full_context, loc_map
 
