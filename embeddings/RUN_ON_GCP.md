@@ -4,16 +4,17 @@ While the `test_emb.py` script already uses GCP's Vertex AI for generating embed
 
 If you want to move the entire execution environment to the cloud (e.g., to avoid local setup, leverage cloud networking, or keep data within GCP), the recommended approach is using **Vertex AI Workbench**.
 
-## Option 1: Vertex AI Workbench (Recommended)
+## Option 1: Vertex AI Workbench Instances (Recommended)
 
-Vertex AI Workbench provides a JupyterLab environment pre-configured with many data science tools.
+Vertex AI Workbench Instances are the modern, fully managed JupyterLab environments recommended by Google.
 
-### 1. Create a Notebook Instance
-1.  Go to the [Vertex AI Workbench](https://console.cloud.google.com/vertex-ai/workbench) console.
-2.  Create a new **User-Managed Notebook** (or "Instance").
-3.  Select **Python 3** (TensorFlow/PyTorch versions are fine, but generic Python 3 is sufficient).
-4.  Ensure it is in the same region as your resources (e.g., `us-central1`).
-5.  Click **Create**.
+### 1. Create an Instance
+1.  Go to the [Vertex AI Workbench](https://console.cloud.google.com/vertex-ai/workbench/instances) console.
+2.  Ensure you are on the **Instances** tab.
+3.  Click **Create New**.
+4.  Name your instance (e.g., `rag-learning-notebook`).
+5.  Select your **Region** (e.g., `us-central1`).
+6.  Click **Create**. (The default settings are usually sufficient for this demo).
 
 ### 2. Clone the Repository
 1.  Once the JupyterLab interface is open, open a **Terminal**.
