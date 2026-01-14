@@ -1,3 +1,5 @@
+import hashlib
+
 import vertexai
 from vertexai.language_models import TextGenerationModel, TextEmbeddingModel
 from vertexai.generative_models import GenerativeModel, SafetySetting
@@ -27,6 +29,9 @@ class ACEAgent:
         
         # Initialize Vector Store (RAG)
         self.vector_store = GoogleVectorStore(project_id=PROJECT_ID, location=LOCATION)
+        
+        # Cache for Reflector (Optimization)
+        self.endpoint_cache = {}
         
         if not self.mock:
             self.model = GenerativeModel(model_name)
@@ -337,6 +342,15 @@ Instructions:
                 print(f"  - Reviewing {verb.upper()} {path}...")
                 op_yaml = yaml.dump({path: {verb: operation}})
                 
+                # OPTIMIZATION: Check Cache
+                op_hash = hashlib.md5(op_yaml.encode()).hexdigest()
+                if op_hash in self.endpoint_cache:
+                    print(f"    -> Cache Hit! Skipping LLM review for unchanged endpoint.")
+                    cached_val = self.endpoint_cache[op_hash]
+                    if "NO_ISSUES" not in cached_val:
+                         critiques.append(f"### Issue in {verb.upper()} {path}:\n{cached_val}")
+                    continue
+
                 prompt_endpoint = f"""
 You are a code reviewer focusing on API Design.
 Critique this SPECIFIC endpoint against standards.
@@ -355,6 +369,10 @@ Instructions:
 5. Return "NO_ISSUES" if compliant. Otherwise, provide actionable fixes.
 """
                 op_critique = self._call_llm(prompt_endpoint)
+                
+                # Update Cache
+                self.endpoint_cache[op_hash] = op_critique
+                
                 if "NO_ISSUES" not in op_critique:
                      critiques.append(f"### Issue in {verb.upper()} {path}:\n{op_critique}")
 
@@ -459,6 +477,10 @@ Instructions:
 
             # 4. Curate (with Dedup)
             context_playbook = self.curator(context_playbook, critique)
+            
+            # Metrics
+            playbook_rules_count = len([line for line in context_playbook.split('\n') if line.strip().startswith('-')])
+            print(f"   [Epoch {epoch} Stats]: Critique Size={critique_len} chars | Playbook Rules={playbook_rules_count}")
             print("Context Updated.")
 
         return final_oas, context_playbook
@@ -491,6 +513,15 @@ if __name__ == "__main__":
         with open(playbook_file, "w") as f:
             f.write(final_playbook)
         print(f"Final Context Playbook saved to {playbook_file}")
+        
+        # Final Verification
+        final_rules = len([l for l in final_playbook.split('\n') if l.strip().startswith('-')])
+        print(f"\n=== FINAL SUMMARY ===")
+        print(f"Total Rules Learned: {final_rules}")
+        if agent.mock == False and previous_critique_len > 500:
+            print(f"WARNING: Final Critique Size is still high ({previous_critique_len} chars).")
+            print("Recommendation: Increase 'epochs' to give the Agent more time to self-correct.")
+        print(f"Run Complete.")
 
     except Exception as e:
         print("Fatal Error:")

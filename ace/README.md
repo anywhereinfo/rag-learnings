@@ -136,6 +136,7 @@ The critical feedback loop.
 *   **Completeness Audit**: Re-scans the Product Spec high-level features and checks if the OAS is missing any core endpoints (e.g., "Product Spec mentions 'Invoices' but OAS has no `/invoices` path").
 *   **Global Review**: Retrieves broad governance rules and audits the OAS `info`, `servers`, and `security` objects.
 *   **Per-Endpoint Review**: Iterates through every path/verb in the OAS.
+    *   **Caching Optimization**: Computes MD5 hash of the endpoint definition. If unchanged from the previous epoch, reuses the cached critique/approval to save tokens.
     *   Retrieves specific rules for naming, status codes, and errors.
     *   Asks the LLM to critique *only* that specific endpoint against the rules.
 *   **Output**: A clean string of "NO_ISSUES" or a bulleted list of violations.
@@ -149,6 +150,9 @@ The memory manager.
 
 ### `run(self, ...)`
 The main entry point that executes the `Generative -> Reflective -> Curative` loop for `N` epochs.
+*   **Observability**: Prints Per-Epoch stats:
+    *   `Critique Size`: Should decrease (fewer errors).
+    *   `Playbook Rules`: Should increase or stabilize (learned patterns).
 
 ## API Reference: Utilities
 
