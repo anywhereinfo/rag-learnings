@@ -206,7 +206,16 @@ openapi: 3.0.0
         for feat in features.split(','):
             feat = feat.strip()
             if not feat: continue
-            results = vector_store.search(f"Details specifications for {feat}", k=5, filter_metadata={'type': 'product_spec'})
+            
+            # Deep Dive with Reranking
+            # Use Reranker (rerank=True) to ensure the 15 chunks are actually relevant
+            results = vector_store.search(
+                f"Detailed API specifications, endpoints, data models and errors for {feat}", 
+                k=15, 
+                filter_metadata={'type': 'product_spec'},
+                rerank=True
+            )
+            
             for r in results:
                 full_context += f"--- Context for {feat} ---\n{r['text']}\n"
         return full_context, loc_map

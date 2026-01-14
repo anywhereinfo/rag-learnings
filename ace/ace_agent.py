@@ -232,17 +232,17 @@ Instructions:
         # Limit to top 5 to avoid blowing up context window too much in demo
         for feature in features[:5]: 
             location_map[feature] = []
-            queries = [
-                f"{feature} API endpoints and methods",
-                f"{feature} data model schema fields",
-                f"{feature} requirements and constraints"
-            ]
-            
-            for q in queries:
-                results = self.vector_store.search(q, k=100, filter_metadata={'type': 'product_spec'})
-                for r in results:
-                    # Deduplicate by simple string check
-                    if r['text'] not in retrieved_context:
+            # Deep Dive for specific feature logic
+            # Use Reranker (rerank=True) to ensure the 15 chunks are actually relevant
+            results = self.vector_store.search(
+                f"Detailed API specifications, endpoints, data models and errors for {feature}", 
+                k=15, 
+                filter_metadata={'type': 'product_spec'},
+                rerank=True
+            )
+            for r in results:
+                # Deduplicate by simple string check
+                if r['text'] not in retrieved_context:
                         # Extract pages
                         pages = r['metadata'].get('pages', [])
                         if isinstance(pages, list):

@@ -16,6 +16,7 @@ class GoogleVectorStore:
         
         self.index_endpoint = None
         self.index = None
+        self.cross_encoder = None
         
         # In a real scenario, we would connect to an existing index
         if index_endpoint_name:
@@ -71,62 +72,62 @@ class GoogleVectorStore:
             if i % 10 == 0:
                 print(f"Processed {i}/{len(chunks)}...")
 
-    def search(self, query, k=3, filter_metadata=None):
+    def search(self, query, k=3, filter_metadata=None, rerank=False):
         """
-        Search for relevant chunks with optional metadata filtering.
-        filter_metadata: dict, e.g., {'type': 'product_spec'}
+        Search for relevant chunks with optional metadata filtering and Reranking.
         """
         query_embedding = self.embed_text(query)
         
-        # 1. Google Vector Search Call
-        if self.index_endpoint:
-            try:
-                # In Vertex AI Vector Search, filtering is done using 'restricts'
-                print(f"Querying Endpoint with filter: {filter_metadata}")
-                # Placeholder for actual client call
-            except Exception as e:
-                print(f"Vector Search Error: {e}")
-
-        # 2. Local Fallback Search (Cosine Sim)
-        if not self.local_store:
-            return []
-
-        # Filter candidates first (Local Simulation of 'Restricts')
-        candidates = []
-        candidate_indices = []
+        # 0. Candidates Selection 
+        # (Same logic as before, but if rerank=True, we fetch more candidates)
+        initial_k = k * 5 if rerank else k
         
-        for i, item in enumerate(self.local_store):
+        # ... (Existing Google Index Logic Placeholder) ...
+
+        # 2. Local Partial Search
+        raw_candidates = []
+        for item in self.local_store:
             if filter_metadata:
-                match = True
-                for key, val in filter_metadata.items():
-                    if item['metadata'].get(key) != val:
-                        match = False
-                        break
-                if match:
-                    candidates.append(item)
-                    candidate_indices.append(i)
+                if all(item['metadata'].get(key) == val for key, val in filter_metadata.items()):
+                    raw_candidates.append(item)
             else:
-                candidates.append(item)
-                candidate_indices.append(i)
+                raw_candidates.append(item)
         
-        if not candidates:
-            return []
+        if not raw_candidates: return []
 
+        # Cosine Similarity (The "Retriever")
         q_vec = np.array(query_embedding).reshape(1, -1)
-        store_matrix = np.array([item['embedding'] for item in candidates])
-        
+        store_matrix = np.array([item['embedding'] for item in raw_candidates])
         from sklearn.metrics.pairwise import cosine_similarity
         sims = cosine_similarity(q_vec, store_matrix)[0]
         
-        # Get Top K relative to the candidates list
-        # argsort gives indices into 'sims', which corresponds to 'candidates'
-        top_k_indices = sims.argsort()[-k:][::-1]
+        top_indices = sims.argsort()[-initial_k:][::-1]
+        preliminary_results = [raw_candidates[i] for i in top_indices]
+
+        if not rerank:
+            return preliminary_results
+
+        # 3. Reranking (The "Cross Encoder")
+        if not self.cross_encoder:
+             try:
+                 from sentence_transformers import CrossEncoder
+                 print("Loading CrossEncoder (ms-marco-MiniLM-L-6-v2)...")
+                 self.cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+             except Exception as e:
+                 print(f"Failed to load CrossEncoder: {e}. Returning raw results.")
+                 return preliminary_results[:k]
+
+        print(f"Reranking {len(preliminary_results)} candidates for: '{query}'")
+        pairs = [[query, item['text']] for item in preliminary_results]
+        scores = self.cross_encoder.predict(pairs)
         
-        results = []
-        for idx in top_k_indices:
-            results.append(candidates[idx])
+        # augment results with score
+        for i, res in enumerate(preliminary_results):
+            res['score'] = scores[i]
             
-        return results
+        # Sort by CrossEncoder score
+        reranked = sorted(preliminary_results, key=lambda x: x['score'], reverse=True)
+        return reranked[:k]
 
     def get_all_by_metadata(self, filter_metadata):
         """

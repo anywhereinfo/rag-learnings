@@ -20,6 +20,7 @@ This module is designed as a **Production-Grade Abstraction** over Google Cloud 
 *   **Hybrid Search Implementation**:
     *   **Layer 1 (Metadata)**: Hard filters exclude irrelevant documents (e.g., "Only look at `product_spec`").
     *   **Layer 2 (Vector)**: Semantic search finds the most relevant content within that subset.
+    *   **Layer 3 (Reranking)**: A **Cross-Encoder Model** (`ms-marco-MiniLM-L-6-v2`) re-scores the Top-N retrieved results to ensure the most precise chunks are prioritized for the LLM.
 
 ### 2. The PDF Pipeline & Chunking Design (`PDFChunker`)
 We employ a **Multimodal, Context-Preserving Chunking Strategy** to handle complex documents.
