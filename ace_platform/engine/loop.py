@@ -20,7 +20,7 @@ class ACELoop:
             artifact = self.plugin.generate(context, playbook)
             
             # 3. Reflect
-            critique = self.plugin.reflect(artifact)
+            critique = self.plugin.reflect(artifact, context)
             
             if "NO_ISSUES" in critique:
                 print("Converged!")

@@ -1,0 +1,38 @@
+- Follow standard RESTful practices.
+- Ensure valid YAML output.
+- Ensure the OpenAPI Specification includes management endpoints for all primary domain entities identified in the product requirements document.
+- Apply security requirements at the individual path or operation level, not globally.
+- Use an integer representing Megabits per second (Mbps) for all bandwidth-related fields and include an `_mbps` suffix in the field name.
+- Name all fields with `format: date-time` using an `_at` suffix.
+- Do not include user-specific identifiers in resource payloads; derive user identity from the authentication token for auditing purposes.
+- Structure all API paths with a canonical product namespace and version prefix (e.g., `/{product}/v{version}/{resource}`).
+- Define all 4xx and 5xx error responses to use the `application/problem+json` content type and conform to the RFC 9457 Problem Details standard.
+- Include definitions for common error responses such as 403 (Forbidden) and 429 (Too Many Requests) in the API contract.
+- Require an `Idempotency-Key` header for all `POST` operations that create resources to ensure safe retries.
+- Use the asynchronous Long-Running Operation (LRO) pattern for any operation that may exceed 2-3 seconds by returning a `202 Accepted` with a `Location` header pointing to an operation status resource.
+- Write operation summaries as short, action-oriented phrases from the user's perspective.
+- Use `application/merge-patch+json` as the content type for all `PATCH` operations.
+- Use specific verbs in the `operationId` to reflect the HTTP method (e.g., `patchResource`, `deleteResource`).
+- Use a single, canonical schema for all resource identifiers.
+- Order OpenAPI operation fields consistently for readability, placing `summary`, `tags`, and `operationId` at the top of the operation block.
+- Use `start_at` and `end_at` query parameters with `format: date-time` for specifying time ranges instead of enums or magic strings.
+- Implement conditional `GET` requests for all cacheable resources by including an `ETag` header in the response and supporting the `If-None-Match` header in the request.
+- For all endpoints that return a collection, implement pagination by accepting `limit` and `offset` query parameters and wrapping the response in a top-level object containing a `data` array and a `pagination` metadata object.
+- Use plural nouns for resource names in URIs that represent collections.
+- Ensure all JSON request and response bodies are top-level objects, not arrays or primitives.
+- Use the `207 Multi-Status` response code for batch operations to report per-item success or failure.
+- A `DELETE` request MUST NOT have a request body.
+- Use the `POST` method for batch or bulk actions, such as deleting multiple resources at once, on an action-style endpoint (e.g., `/resources:delete`).
+- Represent all primary domain entities identified in the product specification as manageable API resources.
+- Define all resource identifiers as `type: string` with `format: uuid`.
+- Mandate the `Idempotency-Key` header for all LRO-initiating requests (POST, PUT, PATCH, DELETE).
+- Include a `Location` header in all `202 Accepted` responses for LROs, pointing to the operation status resource.
+- Include the `Retry-After` header in `202 Accepted` responses to guide client polling.
+- Ensure `DELETE` operations, both synchronous (204) and asynchronous (202), never return a response body.
+- Include the `ETag` header in `304 Not Modified` responses.
+- Group all operations using tags based on the primary resource name, not on the capability.
+- Use the suffixes `_from` and `_until` for parameters defining a date or time range.
+- Define a `pattern` (regex) and an `example` for any parameter that uses a custom string format.
+- Use `last_updated_at` instead of `updated_at` in resource metadata schemas to align with canonical models.
+- Structure schemas using `allOf` by placing `type`, `description`, and the `allOf` keyword at the same level.
+- Write informative response descriptions that detail the specific state or data being returned.

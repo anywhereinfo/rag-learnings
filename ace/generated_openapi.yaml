@@ -1,83 +1,158 @@
-```yaml
 openapi: 3.0.3
 info:
   title: Multi-Cloud Gateway API
-  description: API for managing Multi-Cloud Gateway (MCGW) resources, including authentication, API key management, and BGP configuration.
-  version: 1.0.0
+  description: |-
+    The Multi-Cloud Gateway (MCGW) API provides a virtual routing service that allows customers to easily interconnect their cloud environments and on-premises infrastructure using private connectivity.
+
+    This API enables programmatic management of:
+    - **Gateway Instances:** Virtual routing instances that form the core of the service.
+    - **Interfaces:** Virtual Layer 3 interfaces for attaching network connections.
+    - **Routing:** Configuration of BGP sessions and static routes.
+    - **Telemetry:** Retrieval of performance and utilization metrics.
+
+    Built with an API-first approach, all functionalities available in the user interface are exposed through this specification, empowering customers to integrate MCGW into their automated workflows and tech stacks.
+  version: '1.0'
 servers:
-  - url: https://api.example.com/mcgw/v1
+  - url: https://api.lumen.com/mcgw/v1
     description: Production Environment
 tags:
-  - name: Authentication
-    description: Operations for user authentication and session management.
-  - name: API Keys
-    description: Operations for managing internal API keys.
-  - name: BGP
-    description: Operations for managing BGP configurations on gateways.
+  - name: Gateways
+    description: Manage Multi-Cloud Gateway (MCGW) instances.
+  - name: Interfaces
+    description: Manage interfaces on a Multi-Cloud Gateway instance.
+  - name: BGP Sessions
+    description: Manage BGP peering sessions on a gateway interface.
+  - name: Static Routes
+    description: Manage static routes on a gateway.
+  - name: Routes
+    description: View and query the routing table for a gateway.
+  - name: Telemetry
+    description: Retrieve performance and utilization metrics for gateway interfaces.
+  - name: Operations
+    description: Manage and monitor the status of long-running asynchronous operations.
 paths:
-  /auth/login:
-    post:
+  /gateways:
+    get:
+      summary: List Gateways
+      description: Retrieves a paginated list of all Multi-Cloud Gateway instances for the customer.
       tags:
-        - Authentication
-      summary: Log in to obtain a session token
-      description: Authenticates a user with a username and password and returns a session token.
-      operationId: loginUser
-      security: []
-      requestBody:
-        description: User credentials for authentication.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
+        - Gateways
+      operationId: listGateways
+      parameters:
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
       responses:
         '200':
-          description: Authentication successful.
+          description: A paginated list of gateways.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SessionToken'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Gateway'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Create Gateway
+      description: Initiates the creation of a new Multi-Cloud Gateway instance. This is an asynchronous long-running operation.
+      tags:
+        - Gateways
+      operationId: createGateway
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        description: The configuration for the new gateway.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GatewayCreate'
+      responses:
+        '202':
+          $ref: '#/components/responses/Accepted'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-  /admin/api-keys/internal:
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /gateways/{gateway_id}:
     get:
+      summary: Get Gateway
+      description: Retrieves the details of a specific Multi-Cloud Gateway instance by its ID.
       tags:
-        - API Keys
-      summary: List all API keys
-      description: Retrieves a paginated list of all internal API keys.
-      operationId: listApiKeys
+        - Gateways
+      operationId: getGateway
       parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
-          description: A paginated list of API keys.
+          description: The requested gateway resource.
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiKeyList'
+                $ref: '#/components/schemas/Gateway'
+        '304':
+          $ref: '#/components/responses/NotModified'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /admin/api-keys/internal/{apiKeyId}:
-    delete:
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      summary: Update Gateway
+      description: Partially updates the configuration of a specific Multi-Cloud Gateway instance.
       tags:
-        - API Keys
-      summary: Delete an API key
-      description: Permanently deletes an API key by its ID.
-      operationId: deleteApiKey
+        - Gateways
+      operationId: patchGateway
       parameters:
-        - $ref: '#/components/parameters/ApiKeyId'
+        - $ref: '#/components/parameters/GatewayId'
         - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        description: The fields to update on the gateway.
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/GatewayUpdate'
       responses:
-        '204':
-          description: The API key was successfully deleted.
+        '200':
+          description: The gateway was updated successfully.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gateway'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -86,35 +161,89 @@ paths:
           $ref: '#/components/responses/NotFound'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
-  /gateways/{gatewayId}/bgp/interfaces/{interfaceId}/ipv6/sessions:
-    post:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Delete Gateway
+      description: Initiates the deletion of a specific Multi-Cloud Gateway instance. This is an asynchronous long-running operation.
       tags:
-        - BGP
-      summary: Create an IPv6 BGP session
-      description: Configures and creates a new IPv6 BGP peering session on a specific gateway interface.
-      operationId: createIpv6BgpSession
+        - Gateways
+      operationId: deleteGateway
       parameters:
         - $ref: '#/components/parameters/GatewayId'
-        - $ref: '#/components/parameters/InterfaceId'
         - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        description: Configuration for the new IPv6 BGP session.
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BgpSessionIpv6Create'
+        - $ref: '#/components/parameters/IfMatch'
       responses:
-        '201':
-          description: The IPv6 BGP session was created successfully.
-          headers:
-            Location:
-              $ref: '#/components/headers/Location'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /gateways/{gateway_id}/interfaces:
+    get:
+      summary: List Interfaces
+      description: Retrieves a paginated list of all interfaces for a specific gateway.
+      tags:
+        - Interfaces
+      operationId: listInterfaces
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: A paginated list of interfaces.
           content:
             application/json:
               schema:
-                # Assuming the created resource is returned.
-                $ref: '#/components/schemas/BgpSessionIpv6'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Interface'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Create Interface
+      description: Initiates the creation of a new interface on a gateway. This is an asynchronous long-running operation.
+      tags:
+        - Interfaces
+      operationId: createInterface
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        description: The configuration for the new interface.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterfaceCreate'
+      responses:
+        '202':
+          $ref: '#/components/responses/Accepted'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -123,291 +252,1147 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /gateways/{gateway_id}/interfaces/{interface_id}:
+    get:
+      summary: Get Interface
+      description: Retrieves the details of a specific interface on a gateway.
+      tags:
+        - Interfaces
+      operationId: getInterface
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/InterfaceId'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The requested interface resource.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Interface'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      summary: Update Interface
+      description: Partially updates the configuration of a specific interface on a gateway.
+      tags:
+        - Interfaces
+      operationId: patchInterface
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/InterfaceId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        description: The fields to update on the interface.
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/InterfaceUpdate'
+      responses:
+        '200':
+          description: The interface was updated successfully.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Interface'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Delete Interface
+      description: Initiates the deletion of a specific interface from a gateway. This is an asynchronous long-running operation.
+      tags:
+        - Interfaces
+      operationId: deleteInterface
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/InterfaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /gateways/{gateway_id}/interfaces/{interface_id}/telemetry:
+    get:
+      summary: Get Interface Telemetry
+      description: Retrieves telemetry data for a specific interface over a given time period.
+      tags:
+        - Telemetry
+      operationId: getInterfaceTelemetry
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/InterfaceId'
+        - name: start_at
+          in: query
+          description: The start of the time range for the query.
+          schema:
+            type: string
+            format: date-time
+        - name: end_at
+          in: query
+          description: The end of the time range for the query.
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Telemetry data for the interface.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InterfaceTelemetry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /gateways/{gateway_id}/routes:
+    get:
+      summary: Get Route Table
+      description: Retrieves the global routing table for a specific gateway, with options to filter.
+      tags:
+        - Routes
+      operationId: getRouteTable
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - name: address_family
+          in: query
+          description: Filter routes by address family.
+          schema:
+            type: string
+            enum: [ipv4, ipv6]
+        - name: route_type
+          in: query
+          description: Filter routes by their source type.
+          schema:
+            type: string
+            enum: [bgp, static, connected]
+        - name: interface_id
+          in: query
+          description: Filter routes learned from a specific interface.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: A paginated list of routes from the gateway's route table.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Route'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /gateways/{gateway_id}/bgp-sessions:
+    get:
+      summary: List BGP Sessions
+      description: Retrieves a paginated list of all BGP sessions for a specific gateway.
+      tags:
+        - BGP Sessions
+      operationId: listBgpSessions
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - name: interface_id
+          in: query
+          description: Filter BGP sessions by interface ID.
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: A paginated list of BGP sessions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BgpSession'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Create BGP Session
+      description: Initiates the creation of a new BGP session on a gateway interface. This is an asynchronous long-running operation.
+      tags:
+        - BGP Sessions
+      operationId: createBgpSession
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        description: The configuration for the new BGP session.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BgpSessionCreate'
+      responses:
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /gateways/{gateway_id}/bgp-sessions/{session_id}:
+    get:
+      summary: Get BGP Session
+      description: Retrieves the details of a specific BGP session.
+      tags:
+        - BGP Sessions
+      operationId: getBgpSession
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/BgpSessionId'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The requested BGP session resource.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BgpSession'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      summary: Update BGP Session
+      description: Partially updates the configuration of a specific BGP session.
+      tags:
+        - BGP Sessions
+      operationId: patchBgpSession
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/BgpSessionId'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        description: The fields to update on the BGP session.
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/BgpSessionUpdate'
+      responses:
+        '200':
+          description: The BGP session was updated successfully.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BgpSession'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Delete BGP Session
+      description: Initiates the deletion of a specific BGP session. This is an asynchronous long-running operation.
+      tags:
+        - BGP Sessions
+      operationId: deleteBgpSession
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/BgpSessionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /gateways/{gateway_id}/static-routes:
+    get:
+      summary: List Static Routes
+      description: Retrieves a paginated list of all static routes for a specific gateway.
+      tags:
+        - Static Routes
+      operationId: listStaticRoutes
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - name: address_family
+          in: query
+          description: Filter routes by address family.
+          schema:
+            type: string
+            enum: [ipv4, ipv6]
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+      responses:
+        '200':
+          description: A paginated list of static routes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StaticRoute'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Create Static Routes
+      description: Creates one or more static routes on a gateway. This is a batch operation.
+      tags:
+        - Static Routes
+      operationId: createStaticRoutes
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        description: A list of static routes to create.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                routes:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/StaticRouteCreate'
+      responses:
+        '207':
+          description: The batch operation completed with mixed results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchMultiStatusResponseCompact'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /gateways/{gateway_id}/static-routes:batchDelete:
+    post:
+      summary: Delete Static Routes
+      description: Deletes one or more static routes from a gateway in a single batch operation.
+      tags:
+        - Static Routes
+      operationId: deleteStaticRoutes
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        description: A list of static route IDs to delete.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                route_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '207':
+          description: The batch deletion completed with mixed results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchMultiStatusResponseCompact'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /operations/{operation_id}:
+    get:
+      summary: Get Operation Status
+      description: Retrieves the status of a long-running asynchronous operation.
+      tags:
+        - Operations
+      operationId: getOperation
+      parameters:
+        - $ref: '#/components/parameters/OperationId'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The current status of the operation.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: Bearer token for authenticating API requests. Obtained via the `/auth/login` endpoint.
   schemas:
-    LoginRequest:
+    ResourceId:
+      type: string
+      format: uuid
+      description: Opaque, globally unique identifier for a resource. Generated by the API provider.
+      example: 279fc665-d04d-4dba-bcad-17c865489dfa
+    ResourceMetadata:
       type: object
-      description: Credentials for a user login request.
       required:
-        - username
-        - password
+        - id
+        - created_at
+        - last_updated_at
       properties:
-        username:
-          type: string
-          example: 'user@example.com'
-        password:
-          type: string
-          format: password
-          example: 's3cr3t_p@ssw0rd'
-    SessionToken:
-      type: object
-      description: A session token issued upon successful authentication.
-      properties:
-        sessionToken:
-          type: string
-          description: The JWT session token.
-          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
-        tokenExpiration:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        created_at:
           type: string
           format: date-time
-          description: The date and time when the session token expires.
-          example: '2024-08-23T18:25:43.511Z'
-    ApiKey:
-      type: object
-      description: An internal API key.
-      properties:
-        keyId:
-          type: string
-          format: uuid
-          description: The unique identifier for the API key.
-          example: 'a1b2c3d4-e5f6-7890-1234-567890abcdef'
           readOnly: true
-        keyName:
-          type: string
-          description: A user-defined name for the API key.
-          example: 'My Application Key'
-        token:
-          type: string
-          description: The API key token string (only shown on creation).
-          example: 'mCgW.sUp3rS3cr3tT0k3nStr1nG'
-        tokenExpiration:
+          description: The UTC timestamp when the resource was created.
+        last_updated_at:
           type: string
           format: date-time
-          description: The date and time when the API key expires.
-          example: '2025-01-01T00:00:00Z'
-    ApiKeyList:
+          readOnly: true
+          description: The UTC timestamp when the resource was last modified.
+    Gateway:
+      description: A Multi-Cloud Gateway instance.
       type: object
-      description: A paginated list of API keys.
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/ApiKey'
-        nextCursor:
-          type: string
-          nullable: true
-          description: The cursor to use to retrieve the next page of results. Null if there are no more results.
-          example: 'cGFnZT0yJmxpbWl0PTEw'
-    BgpSessionIpv6Create:
-      type: object
-      description: Configuration for creating a BGP IPv6 session.
-      properties:
-        md5Auth:
-          type: boolean
-          description: Enable or disable MD5 authentication for the BGP session.
-          default: false
-        md5Key:
-          type: string
-          description: The MD5 authentication key. Required if `md5Auth` is true.
-          example: 'my_bgp_auth_key'
-    BgpSessionIpv6:
       allOf:
         - $ref: '#/components/schemas/ResourceMetadata'
         - type: object
           properties:
-            md5Auth:
-              type: boolean
-              description: Indicates if MD5 authentication is enabled.
+            name:
+              type: string
+              description: A user-defined friendly name for the gateway.
+              example: 'prod-cloud-router'
+            description:
+              type: string
+              description: A user-defined description for the gateway.
+              example: 'Primary gateway for routing between AWS and Azure'
+            tier:
+              type: string
+              description: The provisioned throughput tier of the instance.
+              enum: [10G, 50G, Unlimited]
+              example: '10G'
+            asn:
+              type: integer
+              description: The Autonomous System Number used for the gateway.
+              example: 1
+            total_aggregate_bandwidth_mbps:
+              type: integer
+              readOnly: true
+              description: The current total aggregate bandwidth of all attached connections, in Mbps.
+              example: 4000
             state:
-              $ref: '#/components/schemas/ResourceState'
-    ResourceMetadata:
+              type: string
+              readOnly: true
+              description: The current provisioning state of the gateway.
+              enum: [Active, Provisioning, Updating, Deleting, Failed]
+              example: Active
+    GatewayCreate:
       type: object
-      description: Standard read-only metadata for a resource.
-      readOnly: true
+      required:
+        - tier
       properties:
-        id:
+        name:
           type: string
-          format: uuid
-          description: The unique identifier for the resource.
-          example: '123e4567-e89b-12d3-a456-426614174000'
-        customerId:
+          description: A user-defined friendly name for the gateway. If not provided, it defaults to the gateway ID.
+          example: 'prod-cloud-router'
+        description:
           type: string
-          format: uuid
-          description: The UID of the customer who owns this resource.
-          example: 'c45b12a3-f987-654e-d321-b0a987c654d2'
-        userId:
+          description: A user-defined description for the gateway.
+          example: 'Primary gateway for routing between AWS and Azure'
+        tier:
           type: string
-          format: uuid
-          description: The UID of the user associated with the last action.
-          example: 'u89a76b5-43c2-10d9-8fe7-654d3cb2a109'
-        provisionedAt:
-          type: string
-          format: date-time
-          description: The timestamp when the resource was originally provisioned.
-          example: '2024-08-22T10:30:00.123Z'
-        lastModifiedAt:
-          type: string
-          format: date-time
-          description: The timestamp when the resource was last modified.
-          example: '2024-08-23T18:25:43.511Z'
-        provisionedBy:
-          type: string
-          description: The user or principal that provisioned the resource.
-          example: 'user@example.com'
-        lastModifiedBy:
-          type: string
-          description: The user or principal that last modified the resource.
-          example: 'user@example.com'
-    ResourceState:
-      type: string
-      readOnly: true
-      description: The current state of the resource at the time of the request.
-      enum:
-        - Active
-        - Disabled
-        - Deleting
-        - Provisioning
-        - Updating
-        - Resetting
-      example: 'Active'
-    ProblemDetails:
-      type: object
-      description: A machine-readable format for specifying errors in HTTP API responses based on RFC 9457.
-      properties:
-        type:
-          type: string
-          format: uri
-          description: An absolute URI that identifies the problem type.
-          example: 'https://api.example.com/errors/authentication-failed'
-        title:
-          type: string
-          description: A short, human-readable summary of the problem type.
-          example: 'Authentication Failed'
-        status:
+          description: The throughput tier to provision for the instance.
+          enum: [10G, 50G, Unlimited]
+          example: '10G'
+        asn:
           type: integer
-          format: int32
-          description: The HTTP status code generated by the origin server for this occurrence of the problem.
-          example: 401
-        detail:
+          description: The Autonomous System Number to use for the gateway.
+          default: 1
+          enum: [1, 3549]
+          example: 1
+    GatewayUpdate:
+      type: object
+      properties:
+        name:
           type: string
-          description: A human-readable explanation specific to this occurrence of the problem.
-          example: 'The provided session token is invalid or has expired.'
-        instance:
+          description: A new friendly name for the gateway.
+          example: 'prod-cloud-router-renamed'
+        description:
           type: string
-          format: uri
-          description: An absolute URI that identifies the specific occurrence of the problem.
-          example: '/admin/api-keys/internal/a1b2c3d4-e5f6-7890-1234-567890abcdef'
-        code:
+          description: A new description for the gateway.
+          example: 'Updated description for primary gateway'
+        tier:
           type: string
-          description: A specific, application-defined error code for programmatic handling.
-          example: 'E-1002'
+          description: The new throughput tier for the instance.
+          enum: [10G, 50G, Unlimited]
+          example: '50G'
+    Interface:
+      description: A virtual interface on a Multi-Cloud Gateway instance.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/ResourceMetadata'
+        - type: object
+          properties:
+            name:
+              type: string
+              description: A user-defined friendly name for the interface.
+              example: 'aws-direct-connect-interface'
+            description:
+              type: string
+              description: A user-defined description for the interface.
+              example: 'Interface for AWS Direct Connect to us-east-1'
+            admin_state:
+              type: string
+              description: The administrative state of the interface.
+              enum: [enabled, disabled]
+              example: enabled
+            operational_state:
+              type: string
+              readOnly: true
+              description: The operational state of the interface, indicating Layer 2 and Layer 3 status.
+              enum: [Up/Up, Up/Down, Down/Down, Admin Down]
+              example: Up/Up
+            bandwidth_mbps:
+              type: integer
+              description: The bandwidth of the interface in Mbps. Inherited from the attached Fabric Connection.
+              example: 1000
+            ipv4_address:
+              $ref: '#/components/schemas/IpAddress'
+            ipv6_address:
+              $ref: '#/components/schemas/IpAddress'
+    InterfaceCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: A user-defined friendly name for the interface.
+          example: 'aws-direct-connect-interface'
+        description:
+          type: string
+          description: A user-defined description for the interface.
+          example: 'Interface for AWS Direct Connect to us-east-1'
+        admin_state:
+          type: string
+          description: The administrative state of the interface.
+          enum: [enabled, disabled]
+          default: disabled
+        ipv4_address:
+          $ref: '#/components/schemas/IpAddress'
+        ipv6_address:
+          $ref: '#/components/schemas/IpAddress'
+    InterfaceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: A new friendly name for the interface.
+          example: 'aws-dx-interface-primary'
+        description:
+          type: string
+          description: A new description for the interface.
+          example: 'Primary interface for AWS Direct Connect to us-east-1'
+        admin_state:
+          type: string
+          description: The new administrative state for the interface.
+          enum: [enabled, disabled]
+        bandwidth_mbps:
+          type: integer
+          description: The new bandwidth for the interface in Mbps.
+          example: 2000
+        ipv4_address:
+          $ref: '#/components/schemas/IpAddress'
+        ipv6_address:
+          $ref: '#/components/schemas/IpAddress'
+    IpAddress:
+      type: object
+      required:
+        - address
+        - prefix_length
+      properties:
+        address:
+          type: string
+          description: The IP address.
+          example: '192.168.1.1'
+        prefix_length:
+          type: integer
+          description: The prefix length (subnet mask) for the IP address.
+          example: 24
+    BgpSession:
+      description: A BGP peering session on a gateway interface.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/ResourceMetadata'
+        - type: object
+          properties:
+            name:
+              type: string
+              description: A user-defined friendly name for the BGP session.
+              example: 'peering-to-aws'
+            interface_id:
+              $ref: '#/components/schemas/ResourceId'
+            address_family:
+              type: string
+              enum: [ipv4, ipv6]
+              example: ipv4
+            remote_peer_ip:
+              type: string
+              description: The IP address of the remote BGP peer.
+              example: '169.254.100.2'
+            remote_asn:
+              type: integer
+              description: The ASN of the remote BGP peer.
+              example: 65001
+            local_asn:
+              type: integer
+              description: The local ASN used for this peering session.
+              example: 1
+            md5_authentication_enabled:
+              type: boolean
+              default: false
+            bfd_enabled:
+              type: boolean
+              default: false
+            state:
+              type: string
+              readOnly: true
+              description: The current state of the BGP session.
+              example: 'Established'
+    BgpSessionCreate:
+      type: object
+      required:
+        - interface_id
+        - remote_peer_ip
+        - remote_asn
+      properties:
+        name:
+          type: string
+          description: A user-defined friendly name for the BGP session.
+          example: 'peering-to-aws'
+        interface_id:
+          $ref: '#/components/schemas/ResourceId'
+        address_family:
+          type: string
+          enum: [ipv4, ipv6]
+          default: ipv4
+        remote_peer_ip:
+          type: string
+          description: The IP address of the remote BGP peer.
+          example: '169.254.100.2'
+        remote_asn:
+          type: integer
+          description: The ASN of the remote BGP peer.
+          example: 65001
+        local_asn:
+          type: integer
+          description: The local ASN to use for this peering session. If not provided, the gateway's ASN is used.
+          example: 1
+        md5_authentication:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              default: false
+            key:
+              type: string
+              description: The MD5 authentication key. Write-only.
+        bfd:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              default: false
+            interval:
+              type: integer
+              enum: [500, 1000, 1500, 2000]
+              default: 500
+            multiplier:
+              type: integer
+              minimum: 5
+              maximum: 10
+              default: 5
+    BgpSessionUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: A new friendly name for the BGP session.
+        md5_authentication:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            key:
+              type: string
+              description: The MD5 authentication key. Write-only.
+        bfd:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            interval:
+              type: integer
+              enum: [500, 1000, 1500, 2000]
+            multiplier:
+              type: integer
+              minimum: 5
+              maximum: 10
+    StaticRoute:
+      description: A static route configured on a gateway.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/ResourceMetadata'
+        - type: object
+          properties:
+            address_family:
+              type: string
+              enum: [ipv4, ipv6]
+              example: ipv4
+            destination_prefix:
+              type: string
+              description: The destination network prefix for the static route.
+              example: '10.0.0.0/8'
+            next_hop_ip:
+              type: string
+              description: The IP address of the next hop for this route.
+              example: '192.168.1.254'
+    StaticRouteCreate:
+      type: object
+      required:
+        - address_family
+        - destination_prefix
+        - next_hop_ip
+      properties:
+        address_family:
+          type: string
+          enum: [ipv4, ipv6]
+        destination_prefix:
+          type: string
+          description: The destination network prefix for the static route.
+          example: '10.0.0.0/8'
+        next_hop_ip:
+          type: string
+          description: The IP address of the next hop for this route.
+          example: '192.168.1.254'
+    Route:
+      description: A route entry from the gateway's global routing table.
+      type: object
+      properties:
+        destination_prefix:
+          type: string
+          description: The destination network prefix.
+          example: '192.168.10.0/24'
+        next_hop_ip:
+          type: string
+          description: The IP address of the next hop. Internal IPs are not displayed.
+          example: '203.0.113.1'
+        interface_name:
+          type: string
+          description: The name of the MCGW interface through which this route was learned or is routed.
+          example: 'Customer-Intf-1'
+        route_type:
+          type: string
+          description: The source of the route.
+          enum: [bgp, static, connected]
+          example: bgp
+        as_path:
+          type: string
+          description: The BGP AS path for the route.
+          example: '65001 65002'
+        med:
+          type: integer
+          description: The BGP Multi-Exit Discriminator value.
+          example: 100
+        local_preference:
+          type: integer
+          description: The BGP local preference value.
+          example: 200
+        last_updated_at:
+          type: string
+          format: date-time
+          description: The UTC timestamp when the route was last learned or changed.
+    InterfaceTelemetry:
+      description: Telemetry data for a gateway interface.
+      type: object
+      properties:
+        last_interval_at:
+          type: string
+          format: date-time
+          description: The timestamp of the most recent data interval.
+        current:
+          type: object
+          properties:
+            rx_utilization_percent:
+              type: number
+              format: float
+            tx_utilization_percent:
+              type: number
+              format: float
+            rx_bps:
+              type: integer
+              format: int64
+            tx_bps:
+              type: integer
+              format: int64
+            rx_pps:
+              type: integer
+              format: int64
+            tx_pps:
+              type: integer
+              format: int64
+        time_period_summary:
+          type: object
+          properties:
+            min_rx_bps:
+              type: integer
+              format: int64
+            max_rx_bps:
+              type: integer
+              format: int64
+            min_tx_bps:
+              type: integer
+              format: int64
+            max_tx_bps:
+              type: integer
+              format: int64
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items available.
+        limit:
+          type: integer
+          description: The number of items returned in the current page.
+        offset:
+          type: integer
+          description: The starting position of the current page.
+    Operation:
+      $ref: './reusable/schemas/Operation.yaml'
+    LpdpProblem:
+      $ref: './reusable/schemas/LpdpProblem.yaml'
+    LpdpError:
+      $ref: './reusable/schemas/LpdpError.yaml'
+    BatchMultiStatusResponseCompact:
+      $ref: './reusable/schemas/BatchMultiStatusResponseCompact.yaml'
   parameters:
-    Limit:
+    GatewayId:
+      name: gateway_id
+      in: path
+      required: true
+      description: The unique identifier for the gateway.
+      schema:
+        $ref: '#/components/schemas/ResourceId'
+    InterfaceId:
+      name: interface_id
+      in: path
+      required: true
+      description: The unique identifier for the interface.
+      schema:
+        $ref: '#/components/schemas/ResourceId'
+    BgpSessionId:
+      name: session_id
+      in: path
+      required: true
+      description: The unique identifier for the BGP session.
+      schema:
+        $ref: '#/components/schemas/ResourceId'
+    OperationId:
+      name: operation_id
+      in: path
+      required: true
+      description: The unique identifier for the asynchronous operation.
+      schema:
+        $ref: '#/components/schemas/ResourceId'
+    LimitParam:
       name: limit
       in: query
       description: The maximum number of items to return.
       schema:
         type: integer
-        format: int32
+        default: 20
         minimum: 1
         maximum: 100
-        default: 20
-    Cursor:
-      name: cursor
+    OffsetParam:
+      name: offset
       in: query
-      description: The pagination cursor for the next page of items.
+      description: The number of items to skip before starting to collect the result set.
       schema:
-        type: string
-    ApiKeyId:
-      name: apiKeyId
-      in: path
-      description: The unique identifier of the API key.
+        type: integer
+        default: 0
+        minimum: 0
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
       required: true
-      schema:
-        type: string
-        format: uuid
-    GatewayId:
-      name: gatewayId
-      in: path
-      description: The unique identifier of the Multi-Cloud Gateway.
-      required: true
-      schema:
-        type: string
-        format: uuid
-    InterfaceId:
-      name: interfaceId
-      in: path
-      description: The unique identifier of the gateway interface.
-      required: true
+      description: A unique key to prevent duplicate processing of the request.
       schema:
         type: string
         format: uuid
     IfMatch:
       name: If-Match
       in: header
-      description: The ETag of the resource to be modified. Used for optimistic concurrency control.
       required: true
+      description: The ETag of the resource to ensure optimistic concurrency control.
       schema:
         type: string
-    IdempotencyKey:
-      name: Idempotency-Key
+    IfNoneMatch:
+      name: If-None-Match
       in: header
-      description: A unique key to ensure idempotency of the request.
+      required: false
+      description: The ETag of a cached resource for conditional GET requests.
       schema:
         type: string
-        format: uuid
   headers:
     ETag:
-      description: The current ETag of the resource, used for caching and optimistic concurrency control.
+      description: The ETag for the current version of the resource.
       schema:
         type: string
-        example: '"123456789"'
     Location:
-      description: The canonical URI of the newly created resource.
+      description: The URL of the newly created or operation resource.
       schema:
         type: string
         format: uri
+    RetryAfter:
+      description: The number of seconds to wait before retrying the request.
+      schema:
+        type: integer
   responses:
+    Accepted:
+      description: The request has been accepted for processing. The client should poll the URL in the `Location` header to check the status of the operation.
+      headers:
+        Location:
+          $ref: '#/components/headers/Location'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Operation'
+    NoContent:
+      description: The request was successful, and there is no content to return.
+    NotModified:
+      description: The resource has not been modified since the version specified in the `If-None-Match` header.
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
     BadRequest:
-      description: Bad Request. The server cannot or will not process the request due to a client error (e.g., malformed request syntax).
+      description: The request is malformed or contains invalid parameters.
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetails'
+            $ref: '#/components/schemas/LpdpProblem'
     Unauthorized:
-      description: Unauthorized. The client must authenticate itself to get the requested response.
+      description: Authentication credentials are missing or invalid.
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetails'
+            $ref: '#/components/schemas/LpdpProblem'
     Forbidden:
-      description: Forbidden. The client does not have access rights to the content.
+      description: The authenticated user does not have permission to perform this action.
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetails'
+            $ref: '#/components/schemas/LpdpProblem'
     NotFound:
-      description: Not Found. The server can not find the requested resource.
+      description: The requested resource could not be found.
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetails'
+            $ref: '#/components/schemas/LpdpProblem'
+    Conflict:
+      description: The request could not be completed due to a conflict with the current state of the target resource.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/LpdpProblem'
     PreconditionFailed:
-      description: Precondition Failed. The `If-Match` header does not match the resource's current ETag.
+      description: The `If-Match` header does not match the current ETag of the resource, indicating a concurrency conflict.
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetails'
-    UnprocessableEntity:
-      description: Unprocessable Entity. The server understands the content type and syntax, but was unable to process the contained instructions (e.g., validation error).
+            $ref: '#/components/schemas/LpdpProblem'
+    TooManyRequests:
+      description: The client has sent too many requests in a given amount of time.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetails'
+            $ref: '#/components/schemas/LpdpProblem'
     InternalServerError:
-      description: Internal Server Error. The server encountered an unexpected condition that prevented it from fulfilling the request.
+      description: An unexpected error occurred on the server.
       content:
         application/problem+json:
           schema:
-            $ref: '#/components/schemas/ProblemDetails'
+            $ref: '#/components/schemas/LpdpProblem'
+  securitySchemes:
+    oAuth2:
+      type: oauth2
+      description: This API uses OAuth 2.0 with the client credentials grant flow.
+      flows:
+        clientCredentials:
+          tokenUrl: https://api.lumen.com/oauth/token
+          scopes:
+            mcgw:read: 'Read access to MCGW resources'
+            mcgw:write: 'Write access to MCGW resources'
 security:
-  - bearerAuth: []
-```
+  - oAuth2: [mcgw:read, mcgw:write]
