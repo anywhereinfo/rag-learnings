@@ -1,0 +1,413 @@
+```yaml
+openapi: 3.0.3
+info:
+  title: Multi-Cloud Gateway API
+  description: API for managing Multi-Cloud Gateway (MCGW) resources, including authentication, API key management, and BGP configuration.
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/mcgw/v1
+    description: Production Environment
+tags:
+  - name: Authentication
+    description: Operations for user authentication and session management.
+  - name: API Keys
+    description: Operations for managing internal API keys.
+  - name: BGP
+    description: Operations for managing BGP configurations on gateways.
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Log in to obtain a session token
+      description: Authenticates a user with a username and password and returns a session token.
+      operationId: loginUser
+      security: []
+      requestBody:
+        description: User credentials for authentication.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionToken'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/api-keys/internal:
+    get:
+      tags:
+        - API Keys
+      summary: List all API keys
+      description: Retrieves a paginated list of all internal API keys.
+      operationId: listApiKeys
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: A paginated list of API keys.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/api-keys/internal/{apiKeyId}:
+    delete:
+      tags:
+        - API Keys
+      summary: Delete an API key
+      description: Permanently deletes an API key by its ID.
+      operationId: deleteApiKey
+      parameters:
+        - $ref: '#/components/parameters/ApiKeyId'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: The API key was successfully deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+  /gateways/{gatewayId}/bgp/interfaces/{interfaceId}/ipv6/sessions:
+    post:
+      tags:
+        - BGP
+      summary: Create an IPv6 BGP session
+      description: Configures and creates a new IPv6 BGP peering session on a specific gateway interface.
+      operationId: createIpv6BgpSession
+      parameters:
+        - $ref: '#/components/parameters/GatewayId'
+        - $ref: '#/components/parameters/InterfaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        description: Configuration for the new IPv6 BGP session.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BgpSessionIpv6Create'
+      responses:
+        '201':
+          description: The IPv6 BGP session was created successfully.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                # Assuming the created resource is returned.
+                $ref: '#/components/schemas/BgpSessionIpv6'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Bearer token for authenticating API requests. Obtained via the `/auth/login` endpoint.
+  schemas:
+    LoginRequest:
+      type: object
+      description: Credentials for a user login request.
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: 'user@example.com'
+        password:
+          type: string
+          format: password
+          example: 's3cr3t_p@ssw0rd'
+    SessionToken:
+      type: object
+      description: A session token issued upon successful authentication.
+      properties:
+        sessionToken:
+          type: string
+          description: The JWT session token.
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+        tokenExpiration:
+          type: string
+          format: date-time
+          description: The date and time when the session token expires.
+          example: '2024-08-23T18:25:43.511Z'
+    ApiKey:
+      type: object
+      description: An internal API key.
+      properties:
+        keyId:
+          type: string
+          format: uuid
+          description: The unique identifier for the API key.
+          example: 'a1b2c3d4-e5f6-7890-1234-567890abcdef'
+          readOnly: true
+        keyName:
+          type: string
+          description: A user-defined name for the API key.
+          example: 'My Application Key'
+        token:
+          type: string
+          description: The API key token string (only shown on creation).
+          example: 'mCgW.sUp3rS3cr3tT0k3nStr1nG'
+        tokenExpiration:
+          type: string
+          format: date-time
+          description: The date and time when the API key expires.
+          example: '2025-01-01T00:00:00Z'
+    ApiKeyList:
+      type: object
+      description: A paginated list of API keys.
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiKey'
+        nextCursor:
+          type: string
+          nullable: true
+          description: The cursor to use to retrieve the next page of results. Null if there are no more results.
+          example: 'cGFnZT0yJmxpbWl0PTEw'
+    BgpSessionIpv6Create:
+      type: object
+      description: Configuration for creating a BGP IPv6 session.
+      properties:
+        md5Auth:
+          type: boolean
+          description: Enable or disable MD5 authentication for the BGP session.
+          default: false
+        md5Key:
+          type: string
+          description: The MD5 authentication key. Required if `md5Auth` is true.
+          example: 'my_bgp_auth_key'
+    BgpSessionIpv6:
+      allOf:
+        - $ref: '#/components/schemas/ResourceMetadata'
+        - type: object
+          properties:
+            md5Auth:
+              type: boolean
+              description: Indicates if MD5 authentication is enabled.
+            state:
+              $ref: '#/components/schemas/ResourceState'
+    ResourceMetadata:
+      type: object
+      description: Standard read-only metadata for a resource.
+      readOnly: true
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The unique identifier for the resource.
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        customerId:
+          type: string
+          format: uuid
+          description: The UID of the customer who owns this resource.
+          example: 'c45b12a3-f987-654e-d321-b0a987c654d2'
+        userId:
+          type: string
+          format: uuid
+          description: The UID of the user associated with the last action.
+          example: 'u89a76b5-43c2-10d9-8fe7-654d3cb2a109'
+        provisionedAt:
+          type: string
+          format: date-time
+          description: The timestamp when the resource was originally provisioned.
+          example: '2024-08-22T10:30:00.123Z'
+        lastModifiedAt:
+          type: string
+          format: date-time
+          description: The timestamp when the resource was last modified.
+          example: '2024-08-23T18:25:43.511Z'
+        provisionedBy:
+          type: string
+          description: The user or principal that provisioned the resource.
+          example: 'user@example.com'
+        lastModifiedBy:
+          type: string
+          description: The user or principal that last modified the resource.
+          example: 'user@example.com'
+    ResourceState:
+      type: string
+      readOnly: true
+      description: The current state of the resource at the time of the request.
+      enum:
+        - Active
+        - Disabled
+        - Deleting
+        - Provisioning
+        - Updating
+        - Resetting
+      example: 'Active'
+    ProblemDetails:
+      type: object
+      description: A machine-readable format for specifying errors in HTTP API responses based on RFC 9457.
+      properties:
+        type:
+          type: string
+          format: uri
+          description: An absolute URI that identifies the problem type.
+          example: 'https://api.example.com/errors/authentication-failed'
+        title:
+          type: string
+          description: A short, human-readable summary of the problem type.
+          example: 'Authentication Failed'
+        status:
+          type: integer
+          format: int32
+          description: The HTTP status code generated by the origin server for this occurrence of the problem.
+          example: 401
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence of the problem.
+          example: 'The provided session token is invalid or has expired.'
+        instance:
+          type: string
+          format: uri
+          description: An absolute URI that identifies the specific occurrence of the problem.
+          example: '/admin/api-keys/internal/a1b2c3d4-e5f6-7890-1234-567890abcdef'
+        code:
+          type: string
+          description: A specific, application-defined error code for programmatic handling.
+          example: 'E-1002'
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      description: The maximum number of items to return.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      description: The pagination cursor for the next page of items.
+      schema:
+        type: string
+    ApiKeyId:
+      name: apiKeyId
+      in: path
+      description: The unique identifier of the API key.
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GatewayId:
+      name: gatewayId
+      in: path
+      description: The unique identifier of the Multi-Cloud Gateway.
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InterfaceId:
+      name: interfaceId
+      in: path
+      description: The unique identifier of the gateway interface.
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      description: The ETag of the resource to be modified. Used for optimistic concurrency control.
+      required: true
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      description: A unique key to ensure idempotency of the request.
+      schema:
+        type: string
+        format: uuid
+  headers:
+    ETag:
+      description: The current ETag of the resource, used for caching and optimistic concurrency control.
+      schema:
+        type: string
+        example: '"123456789"'
+    Location:
+      description: The canonical URI of the newly created resource.
+      schema:
+        type: string
+        format: uri
+  responses:
+    BadRequest:
+      description: Bad Request. The server cannot or will not process the request due to a client error (e.g., malformed request syntax).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Unauthorized:
+      description: Unauthorized. The client must authenticate itself to get the requested response.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Forbidden. The client does not have access rights to the content.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Not Found. The server can not find the requested resource.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    PreconditionFailed:
+      description: Precondition Failed. The `If-Match` header does not match the resource's current ETag.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    UnprocessableEntity:
+      description: Unprocessable Entity. The server understands the content type and syntax, but was unable to process the contained instructions (e.g., validation error).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    InternalServerError:
+      description: Internal Server Error. The server encountered an unexpected condition that prevented it from fulfilling the request.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+security:
+  - bearerAuth: []
+```

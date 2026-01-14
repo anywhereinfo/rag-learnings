@@ -1,0 +1,20 @@
+# System artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.*.swp
+
+# Environment variables
+.env
+.video_ids
+
+# Local Vector Store (heavy binary)
+*.pkl
+utils/*.pkl
+
+# Logs
+*.txt
+*.log
+
+# Sensitive Documentation (IP)
+docs/product_spec.pdf
