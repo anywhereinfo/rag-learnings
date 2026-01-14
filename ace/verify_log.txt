@@ -1,0 +1,18 @@
+/home/jim/envs/tf/lib/python3.12/site-packages/vertexai/_model_garden/_model_garden_models.py:278: UserWarning: This feature is deprecated as of June 24, 2025 and will be removed on June 24, 2026. For details, see https://cloud.google.com/vertex-ai/generative-ai/docs/deprecations/genai-vertexai-sdk.
+  warning_logs.show_deprecation_warning()
+/home/jim/envs/tf/lib/python3.12/site-packages/vertexai/generative_models/_generative_models.py:433: UserWarning: This feature is deprecated as of June 24, 2025 and will be removed on June 24, 2026. For details, see https://cloud.google.com/vertex-ai/generative-ai/docs/deprecations/genai-vertexai-sdk.
+  warning_logs.show_deprecation_warning()
+/home/jim/envs/tf/lib/python3.12/site-packages/vertexai/_model_garden/_model_garden_models.py:278: UserWarning: This feature is deprecated as of June 24, 2025 and will be removed on June 24, 2026. For details, see https://cloud.google.com/vertex-ai/generative-ai/docs/deprecations/genai-vertexai-sdk.
+  warning_logs.show_deprecation_warning()
+Initializing Vertex AI with project=gcp-prj-ntpc-np-01, location=us-central1
+
+--- Testing Embeddings (text-embedding-004) ---
+Success! Embedding generated (first 5 dims): [0.013551234267652035, -0.008901020511984825, -0.04676566272974014, 0.00038600710104219615, -0.00909352581948042]
+
+--- Testing Generation (gemini-1.0-pro) ---
+Gemini 1.0 Pro Failed:
+google.api_core.exceptions.NotFound: 404 Publisher Model `projects/gcp-prj-ntpc-np-01/locations/us-central1/publishers/google/models/gemini-1.0-pro` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions
+
+--- Testing Generation (text-bison) ---
+Text Bison Failed:
+google.api_core.exceptions.NotFound: 404 Publisher Model `projects/gcp-prj-ntpc-np-01/locations/us-central1/publishers/google/models/text-bison@002` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions
